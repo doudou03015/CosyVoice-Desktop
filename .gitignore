@@ -35,7 +35,8 @@ exp
 data
 raw_wav
 tensorboard
-**/*build*
+/build/
+/dist/
 
 # Clangd files
 .cache
@@ -50,3 +51,41 @@ pretrained_models/*
 *_pb2_grpc.py
 *_pb2.py
 *.tar
+
+# Desktop private data and separately distributed components
+.venv*/
+.runtime/
+components/
+models/
+outputs/
+projects/
+user_data/
+release-artifacts/
+.pytest_cache/
+*.log
+*.part
+*.tmp
+*.onnx
+*.safetensors
+*.exe
+*.dll
+*.pyd
+*.pth
+*.zip
+*.7z
+*.mp3
+*.mp4
+
+# Only these curated, attributed audio files belong in Git.
+!/voice_library/fleurs_male_01/reference.wav
+!/voice_library/fleurs_male_01/试听_合成.wav
+!/voice_library/fleurs_female_01/reference.wav
+!/voice_library/fleurs_female_01/试听_合成.wav
+!/voice_library/aishell3_sample_01/reference.wav
+!/voice_library/aishell3_sample_01/试听_合成.wav
+!/voice_library/aishell3_sample_02/reference.wav
+!/voice_library/aishell3_sample_02/试听_合成.wav
+!/voice_library/aishell3_sample_03/reference.wav
+!/voice_library/aishell3_sample_03/试听_合成.wav
+!/voice_library/aishell3_sample_04/reference.wav
+!/voice_library/aishell3_sample_04/试听_合成.wav

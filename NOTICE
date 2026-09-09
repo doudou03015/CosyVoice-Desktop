@@ -1,0 +1,26 @@
+CosyVoice-Desktop / CosyVoice 配音工作台
+Copyright 2026 CosyVoice-Desktop contributors.
+
+Derived from QwenAudio/CosyVoice, Copyright 2024 Alibaba Inc.
+Upstream base: 074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc.
+Original Apache License 2.0 copyright and license notices are retained.
+Matcha-TTS submodule: dd9105b34bf2be2230f4aa1e4769fb586a3c824e.
+
+Desktop modifications (2026): native PySide6 interface; isolated JSON-lines
+inference process and shared synthesis engine; Windows offline text resources;
+CPU checkpoint loading; GPU profile detection; portable components; document,
+voice and project management; PowerPoint rendering and FFmpeg video export.
+Modified upstream files contain modification notices. New desktop code is
+distributed under Apache-2.0, unless a file carries a separate notice.
+
+This project is independently maintained and is not an official desktop client
+or an endorsement by Alibaba, QwenAudio, Qt, NVIDIA, Google or AISHELL.
+
+Curated reference audio has separate attribution and licenses in
+voice_library/manifest.json and voice_library/licenses. FLEURS samples are
+CC-BY-4.0; AISHELL-3 samples are Apache-2.0. Generated previews are explicitly
+distinguished from original recordings. User recordings are not included.
+
+Third-party binary components retain their own license terms. Qt and its
+bindings are dynamically loaded; users may replace compatible libraries and
+debug their modifications. No additional restriction on that activity is imposed.

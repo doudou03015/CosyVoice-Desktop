@@ -1,0 +1,22 @@
+[
+  {
+    "archive_path": "flac-1.4.3/COPYING.FDL",
+    "file": "5fb69fee4b664749.txt",
+    "sha256": "f45cc81b400a048b56c9edbd4c3317f7a8958463dfd55aa96f268ecfd6baa12c"
+  },
+  {
+    "archive_path": "flac-1.4.3/COPYING.GPL",
+    "file": "96eb4e2dfc09c959.txt",
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  },
+  {
+    "archive_path": "flac-1.4.3/COPYING.LGPL",
+    "file": "89bf72df0b95eec9.txt",
+    "sha256": "5df07007198989c622f5d41de8d703e7bef3d0e79d62e24332ee739a452af62a"
+  },
+  {
+    "archive_path": "flac-1.4.3/COPYING.Xiph",
+    "file": "562e0f3f8c711e5a.txt",
+    "sha256": "12600ea1a7affcbf469bd0d8b2cd725e4167114a2ee834b88f5d2857bfd7ddbf"
+  }
+]

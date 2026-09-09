@@ -1,0 +1,28 @@
+{
+  "id": "aishell3_sample_01",
+  "name": "普通话样本 01 · AISHELL-3",
+  "transcript": "在教学楼内释放大量烟雾",
+  "source_dataset": "AISHELL-3",
+  "attribution": "Beijing Shell Shell Technology Co., Ltd.; Yao Shi, Hui Bu, Xin Xu, Shaoji Zhang, Ming Li",
+  "source_page": "https://sos1sos2sixteen.github.io/aishell3/",
+  "source_audio_url": "https://sos1sos2sixteen.github.io/aishell3/audios/raw/raw1.wav",
+  "license": "Apache-2.0",
+  "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
+  "license_declaration": "https://www.openslr.org/93/",
+  "original_filename": "raw1.wav",
+  "speaker_id": null,
+  "processing": "原始录音另存为规范 16 位 PCM WAV；保持采样率、音量和完整内容；未裁剪。",
+  "source_section": "Dataset Samples",
+  "downloaded_source_sha256": "f78517208cd319fb0c68c823770d62eed8cbb8e5da240cddb3c14137c9dece2a",
+  "reference_audio": "aishell3_sample_01/reference.wav",
+  "reference_transcript": "aishell3_sample_01/原文.txt",
+  "reference_validation": {
+    "sample_rate": 44100,
+    "channels": 1,
+    "frames": 155804,
+    "duration_seconds": 3.533,
+    "peak": 0.19500732421875,
+    "rms": 0.023461406490627317,
+    "sha256": "584432429519b237c11ebeaa4c7df652f17840bc11e7445eabec61adac7e5b40"
+  }
+}

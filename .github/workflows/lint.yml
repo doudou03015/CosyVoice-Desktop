@@ -2,7 +2,12 @@ name: Lint
 
 on:
   pull_request:
+    branches: [main]
   push:
+    branches: [main]
+
+# Keep the upstream lint configuration on the reference branch.
+# Native desktop code is validated by desktop-tests.yml on Windows/Python 3.12.
 
 jobs:
   quick-checks:
