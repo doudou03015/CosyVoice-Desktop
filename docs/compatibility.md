@@ -7,7 +7,7 @@
 
 | 系列 / 型号 | 显存条件 | 运行包 | 当前证据 |
 |---|---|---|---|
-| RTX 2070 Super | 8 GB | Python 3.10 / torch、torchaudio 2.3.1 / CUDA 12.1 | 现有引擎已实测；桌面版验收记录持续补充 |
+| RTX 2070 Super | 8 GB | Python 3.10 / torch、torchaudio 2.3.1 / CUDA 12.1 | 已实机验证桌面 EXE：CUDA、实际配音、NVENC；长文本及 20 页视频通过 |
 | 其他 RTX 20 | 8 GB 及以上 | cu121 | 目标兼容，待实机验证 |
 | RTX 30 | 8 GB 及以上 | cu121 | 目标兼容，待实机验证 |
 | RTX 4070 Ti Super | 16 GB | cu121 | 目标兼容，待实机验证 |

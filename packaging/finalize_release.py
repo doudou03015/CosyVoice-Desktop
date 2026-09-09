@@ -29,6 +29,15 @@ def finalize(stage, desktop):
         for folder in [ROOT / 'packaging/licenses', ROOT / 'voice_library/licenses']:
             for file in sorted(folder.rglob('*')):
                 if file.is_file(): archive.write(file, file.relative_to(ROOT).as_posix())
+        for runtime in ['runtime-cu121', 'runtime-cu128']:
+            runtime_root = stage / runtime
+            notices = runtime_root / 'THIRD_PARTY_LICENSES'
+            if not notices.is_dir():
+                raise FileNotFoundError(notices)
+            for file in sorted(notices.rglob('*')):
+                if file.is_file():
+                    archive.write(file, runtime + '/' + file.relative_to(runtime_root).as_posix())
+            archive.write(runtime_root / 'LICENSE.txt', runtime + '/PYTHON-LICENSE.txt')
         for file in [ROOT/'NOTICE', ROOT/'LICENSE', ROOT/'docs/licenses.md', ROOT/'docs/build-release.md', ROOT/'packaging/source-manifest.json']:
             if file.exists(): archive.write(file, file.relative_to(ROOT).as_posix())
     shutil.copy2(ROOT / 'docs/build-release.md', output / 'BUILD-RELEASE.md')
