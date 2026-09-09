@@ -1,0 +1,27 @@
+[
+  {
+    "archive_path": "ffmpeg-7.1.5/COPYING.LGPLv2.1",
+    "file": "03b84361021e5005.txt",
+    "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+  },
+  {
+    "archive_path": "ffmpeg-7.1.5/COPYING.GPLv2",
+    "file": "6bbd5387149591f3.txt",
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  },
+  {
+    "archive_path": "ffmpeg-7.1.5/COPYING.LGPLv3",
+    "file": "6d88020a5e5dedd0.txt",
+    "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+  },
+  {
+    "archive_path": "ffmpeg-7.1.5/COPYING.GPLv3",
+    "file": "7d8254ffe19b1b9d.txt",
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "archive_path": "ffmpeg-7.1.5/LICENSE.md",
+    "file": "8967903ebbb1e2c9.txt",
+    "sha256": "cb48bf09a11f5fb576cddb0431c8f5ed0a60157a9ec942adffc13907cbe083f2"
+  }
+]

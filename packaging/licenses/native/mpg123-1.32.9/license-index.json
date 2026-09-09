@@ -1,0 +1,12 @@
+[
+  {
+    "archive_path": "mpg123-1.32.9/COPYING",
+    "file": "935b500f6c179e3d.txt",
+    "sha256": "c22482728a634a8dfdb4ff72a96d4c1ed64cd8f3e79335c401751ac591609366"
+  },
+  {
+    "archive_path": "mpg123-1.32.9/doc/LICENSE",
+    "file": "37f9b2e8d5e19f84.txt",
+    "sha256": "cca79ea6fc0a7715e52450df2d86311f990e85067dd13f4d7f5a88d4fd23a07c"
+  }
+]

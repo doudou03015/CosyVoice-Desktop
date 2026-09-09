@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "name": "frozendict",
+      "version": "2.4.7",
+      "file": "frozendict-2.4.7.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/90/b2/2a3d1374b7780999d3184e171e25439a8358c47b481f68be883c14086b4c/frozendict-2.4.7.tar.gz",
+      "sha256": "e478fb2a1391a56c8a6e10cc97c4a9002b410ecd1ac28c18d780661762e271bd"
+    },
+    {
+      "name": "soxr",
+      "version": "1.1.0",
+      "file": "soxr-1.1.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/ed/11/27cebce4a108f77afea7c80545115536b45e3f11ebfb914f638fdd9ba847/soxr-1.1.0.tar.gz",
+      "sha256": "9f228ae21c78fa9359ca98d8a5e8e91f30639e438e574133dace62c5b5309e44"
+    },
+    {
+      "name": "soundfile",
+      "version": "0.12.1",
+      "file": "soundfile-0.12.1.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/6f/96/5ff33900998bad58d5381fd1acfcdac11cbea4f08fc72ac1dc25ffb13f6a/soundfile-0.12.1.tar.gz",
+      "sha256": "e8e1017b2cf1dda767aef19d2fd9ee5ebe07e050d430f77a0a7c66ba08b8cdae"
+    },
+    {
+      "name": "soundfile",
+      "version": "0.14.0",
+      "file": "soundfile-0.14.0.tar.gz",
+      "url": "https://files.pythonhosted.org/packages/d2/db/949331952a6fb1c5b12e9de80fd08747966c2039d1a61db4764fbd3981c2/soundfile-0.14.0.tar.gz",
+      "sha256": "ba1c1a2d618bca5c406647c83b89f07cc8810fa506a50622a6993ba130c1de11"
+    },
+    {
+      "name": "libsndfile",
+      "version": "1.2.0",
+      "file": "libsndfile-1.2.0.tar.xz",
+      "url": "https://github.com/libsndfile/libsndfile/releases/download/1.2.0/libsndfile-1.2.0.tar.xz",
+      "sha256": "0e30e7072f83dc84863e2e55f299175c7e04a5902ae79cfb99d4249ee8f6d60a"
+    },
+    {
+      "name": "libsndfile",
+      "version": "1.2.2",
+      "file": "libsndfile-1.2.2.tar.xz",
+      "url": "https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz",
+      "sha256": "3799ca9924d3125038880367bf1468e53a1b7e3686a934f098b7e1d286cdb80e"
+    },
+    {
+      "name": "mpg123",
+      "version": "1.29.3",
+      "file": "mpg123-1.29.3.tar.bz2",
+      "url": "https://downloads.sourceforge.net/project/mpg123/mpg123/1.29.3/mpg123-1.29.3.tar.bz2",
+      "sha256": "963885d8cc77262f28b77187c7d189e32195e64244de2530b798ddf32183e847"
+    },
+    {
+      "name": "mpg123",
+      "version": "1.32.9",
+      "file": "mpg123-1.32.9.tar.bz2",
+      "url": "https://downloads.sourceforge.net/project/mpg123/mpg123/1.32.9/mpg123-1.32.9.tar.bz2",
+      "sha256": "03b61e4004e960bacf2acdada03ed94d376e6aab27a601447bd4908d8407b291"
+    },
+    {
+      "sha256": "8ff0607e75a322dd7cd6ec48f4f225471404ae2730d0ea945127b1355155e737",
+      "url": "https://downloads.xiph.org/releases/flac/flac-1.3.4.tar.xz",
+      "version": "1.3.4",
+      "file": "flac-1.3.4.tar.xz",
+      "name": "flac"
+    },
+    {
+      "sha256": "6c58e69cd22348f441b861092b825e591d0b822e106de6eb0ee4d05d27205b70",
+      "url": "https://downloads.xiph.org/releases/flac/flac-1.4.3.tar.xz",
+      "version": "1.4.3",
+      "file": "flac-1.4.3.tar.xz",
+      "name": "flac"
+    },
+    {
+      "sha256": "65b58e1e25b2a114157014736a3d9dfeaad8d41be1c8179866f144a2fb44ff9d",
+      "url": "https://downloads.xiph.org/releases/opus/opus-1.3.1.tar.gz",
+      "version": "1.3.1",
+      "file": "opus-1.3.1.tar.gz",
+      "name": "opus"
+    },
+    {
+      "sha256": "65c1d2f78b9f2fb20082c38cbe47c951ad5839345876e46941612ee87f9a7ce1",
+      "url": "https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz",
+      "version": "1.5.2",
+      "file": "opus-1.5.2.tar.gz",
+      "name": "opus"
+    },
+    {
+      "sha256": "b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b",
+      "url": "https://downloads.xiph.org/releases/vorbis/libvorbis-1.3.7.tar.xz",
+      "version": "1.3.7",
+      "file": "libvorbis-1.3.7.tar.xz",
+      "name": "vorbis"
+    },
+    {
+      "sha256": "c4d91be36fc8e54deae7575241e03f4211eb102afb3fc0775fbbc1b740016705",
+      "url": "https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.xz",
+      "version": "1.3.5",
+      "file": "libogg-1.3.5.tar.xz",
+      "name": "ogg"
+    },
+    {
+      "name": "Qt",
+      "version": "6.11.2",
+      "file": "qt-everywhere-src-6.11.2.tar.xz",
+      "url": "https://download.qt.io/archive/qt/6.11/6.11.2/single/qt-everywhere-src-6.11.2.tar.xz",
+      "sha256": "6dcfbca271d76a6502741a2c0dc6fc98ef7dd0b7b4cfd0abcebb285a86a26f33"
+    },
+    {
+      "name": "PySide6 and Shiboken6",
+      "version": "6.11.2",
+      "file": "pyside-setup-everywhere-src-6.11.2.tar.xz",
+      "url": "https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.2-src/pyside-setup-everywhere-src-6.11.2.tar.xz",
+      "sha256": "cba47efbaad1bedd529725cbc14e21f156c7a19366f07b3edfbb076ffd7afdf8"
+    },
+    {
+      "name": "Qt bundled FFmpeg",
+      "version": "7.1.5",
+      "file": "ffmpeg-7.1.5.tar.xz",
+      "url": "https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz",
+      "sha256": "de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f"
+    },
+    {
+      "name": "Qt FFmpeg zlib",
+      "version": "1.3.1",
+      "file": "zlib-1.3.1.tar.gz",
+      "url": "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
+      "sha256": "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23"
+    },
+    {
+      "name": "libsndfile LAME",
+      "version": "3.100",
+      "file": "lame-3.100.tar.gz",
+      "url": "https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz",
+      "sha256": "ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e"
+    },
+    {
+      "name": "codec build recipes",
+      "version": "vcpkg-2022-2024",
+      "file": "codec-build-recipes.zip",
+      "url": "https://github.com/microsoft/vcpkg",
+      "sha256": "8f3ac8e415dbf72adfb20468954aa340bbd97aa3ac006f2d4d6c813c9b3aaa07"
+    }
+  ],
+  "qt_ffmpeg_configuration": "--prefix=/c/FFmpeg-n7.1.5/build/msvc/installed --disable-programs --disable-doc --disable-debug --enable-network --disable-lzma --enable-pic --disable-vulkan --disable-v4l2-m2m --disable-decoder=truemotion1 --disable-avdevice --disable-avfilter --enable-zlib --extra-cflags='-IC:/zlib-1.3.1/build/amd64' --extra-ldflags='-LIBPATH:C:/zlib-1.3.1/build/amd64' --toolchain=msvc --enable-shared --disable-static",
+  "notes": [
+    "Qt/PySide libraries remain dynamically replaceable in the onedir package.",
+    "soxr 1.1.0 source archive includes libsoxr 0.1.3-14-ga66f3ee source.",
+    "Runtime and GUI soundfile bundle libsndfile 1.2.0 and 1.2.2 respectively.",
+    "The external video FFmpeg component is downloaded directly from its upstream publisher, not rehosted in this release.",
+    "mpg123 source and patch identity verified against DLL embedded build paths: runtime SHA512 patchset prefix 3db975bc05 (1.29.3), GUI 66150af195 (1.32.9)."
+  ]
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "archive_path": "soxr-1.1.0/COPYING.LGPL",
+    "file": "d773ad6f02d042dc.txt",
+    "sha256": "f2f118b9029ec1871b953639ecc46651b2fc7b62e295e6cf3ef2ac4c9a058b33"
+  },
+  {
+    "archive_path": "soxr-1.1.0/LICENSE.txt",
+    "file": "9eeee239a551d784.txt",
+    "sha256": "aeeb7bce59a3dcc7bb08a48a2f012f340c6b28ec50cd22f0ad93194a7d254420"
+  },
+  {
+    "archive_path": "soxr-1.1.0/cmake/LICENSE-PFFFT.txt",
+    "file": "e28e68f333266303.txt",
+    "sha256": "a9f3d236f3c14a41a1293f176d4c7c46d85404403417fcb8df6d6c9707104e42"
+  },
+  {
+    "archive_path": "soxr-1.1.0/libsoxr/COPYING.LGPL",
+    "file": "17764865dd5ef3ad.txt",
+    "sha256": "f2f118b9029ec1871b953639ecc46651b2fc7b62e295e6cf3ef2ac4c9a058b33"
+  },
+  {
+    "archive_path": "soxr-1.1.0/libsoxr/LICENCE",
+    "file": "91bf28bd50458e26.txt",
+    "sha256": "dc98676341fdcd29d9f279c9679d6a75288785b174ded8d1b2e316c366166135"
+  },
+  {
+    "archive_path": "soxr-1.1.0/libsoxr/lsr-tests/COPYING",
+    "file": "51b4e9dace8d96ce.txt",
+    "sha256": "32b1062f7da84967e7019d01ab805935caa7ab7321a7ced0e30ebe75e5df1670"
+  }
+]

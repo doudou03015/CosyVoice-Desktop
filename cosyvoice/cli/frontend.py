@@ -1,4 +1,5 @@
 # Copyright (c) 2024 Alibaba Inc (authors: Xiang Lyu)
+# Modified for CosyVoice-Desktop, 2026: portable offline text resources and available ONNX providers.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,9 +44,11 @@ class CosyVoiceFrontEnd:
         option.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
         option.intra_op_num_threads = 1
         self.campplus_session = onnxruntime.InferenceSession(campplus_model, sess_options=option, providers=["CPUExecutionProvider"])
+        speech_providers = ["CPUExecutionProvider"]
+        if torch.cuda.is_available() and "CUDAExecutionProvider" in onnxruntime.get_available_providers():
+            speech_providers.insert(0, "CUDAExecutionProvider")
         self.speech_tokenizer_session = onnxruntime.InferenceSession(speech_tokenizer_model, sess_options=option,
-                                                                     providers=["CUDAExecutionProvider" if torch.cuda.is_available() else
-                                                                                "CPUExecutionProvider"])
+                                                                     providers=speech_providers)
         if os.path.exists(spk2info):
             self.spk2info = torch.load(spk2info, map_location=self.device, weights_only=True)
         else:
@@ -66,8 +69,29 @@ class CosyVoiceFrontEnd:
             try:
                 from wetext import Normalizer as ZhNormalizer
                 from wetext import Normalizer as EnNormalizer
-                self.zh_tn_model = ZhNormalizer(remove_erhua=False)
-                self.en_tn_model = EnNormalizer()
+                wetext_dir = os.path.abspath(os.environ.get('COSYVOICE_WETEXT_DIR') or
+                                             os.path.join(os.path.dirname(__file__), '../../pretrained_models/wetext'))
+                local_fsts = {
+                    lang: {
+                        'tagger_path': os.path.join(wetext_dir, lang, 'tn', 'tagger.fst'),
+                        'verbalizer_path': os.path.join(wetext_dir, lang, 'tn', 'verbalizer.fst'),
+                    }
+                    for lang in ('zh', 'en')
+                }
+                if all(os.path.isfile(path) for paths in local_fsts.values() for path in paths.values()):
+                    # kaldifst on Windows cannot open Unicode absolute paths;
+                    # the launcher sets the project directory as the working directory.
+                    local_fsts = {
+                        lang: {key: os.path.relpath(path, os.getcwd()) for key, path in paths.items()}
+                        for lang, paths in local_fsts.items()
+                    }
+                    self.zh_tn_model = ZhNormalizer(lang='zh', remove_erhua=False, **local_fsts['zh'])
+                    self.en_tn_model = EnNormalizer(lang='en', **local_fsts['en'])
+                    logging.info('use local wetext resources from %s', wetext_dir)
+                else:
+                    # Preserve the upstream automatic download when local resources are absent.
+                    self.zh_tn_model = ZhNormalizer(lang='zh', remove_erhua=False)
+                    self.en_tn_model = EnNormalizer(lang='en')
                 self.text_frontend = 'wetext'
                 logging.info('use wetext frontend')
             except:
