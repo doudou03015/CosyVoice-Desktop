@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from .paths import app_root, atomic_json, load_settings, save_settings, session_dir, user_data_dir
 from .qt_worker import InferenceProcess
+from .window_placement import place_on_primary_screen
 from . import documents, media, projects, voices
 
 
@@ -212,6 +213,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon(str(app_root() / "desktop_app" / "assets" / "app.ico")))
         self.resize(1280, 850)
         self.setMinimumSize(1060, 740)
+        self._initial_placement_prepared = False
+        self._initial_placement_finished = False
         self.setStyleSheet(STYLE)
         self.settings = load_settings()
         self.library = voices.VoiceLibrary()
@@ -264,6 +267,30 @@ class MainWindow(QMainWindow):
         self._startup_timer.setSingleShot(True)
         self._startup_timer.timeout.connect(self.detect_hardware)
         self._startup_timer.start(150)
+        self._placement_timer = QTimer(self)
+        self._placement_timer.setSingleShot(True)
+        self._placement_timer.timeout.connect(self._finish_initial_placement)
+
+    def prepare_initial_placement(self):
+        """Called by the entry point before the window is first displayed."""
+        if self._initial_placement_finished:
+            return
+        place_on_primary_screen(self)
+        self._initial_placement_prepared = True
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not self._initial_placement_finished:
+            if not self._initial_placement_prepared:
+                self.prepare_initial_placement()
+            self._placement_timer.start(0)
+
+    def _finish_initial_placement(self):
+        if self._initial_placement_finished:
+            return
+        # Windows now knows the real title bar and resize frame dimensions.
+        place_on_primary_screen(self)
+        self._initial_placement_finished = True
 
     def _build(self):
         central = QWidget()
@@ -309,7 +336,13 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self._settings_page())
         self.navigation.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.navigation.setCurrentRow(0)
-        main.addWidget(self.stack, 1)
+        self.page_scroll = QScrollArea()
+        self.page_scroll.setWidgetResizable(True)
+        self.page_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.page_scroll.viewport().setAutoFillBackground(False)
+        self.page_scroll.setWidget(self.stack)
+        self.stack.setAutoFillBackground(False)
+        main.addWidget(self.page_scroll, 1)
         self.playback_label = QLabel("试听：尚未播放。")
         self.playback_label.setObjectName("playbackStatus")
         self.playback_label.setWordWrap(True)
@@ -1744,6 +1777,7 @@ class MainWindow(QMainWindow):
                 self.show_error(str(exc))
 
     def closeEvent(self, event):
+        self._placement_timer.stop()
         self._startup_timer.stop()
         if self.worker.busy or self._background:
             answer = QMessageBox.question(self, "任务仍在进行", "是否取消当前任务并关闭？完整结果会保留。")
