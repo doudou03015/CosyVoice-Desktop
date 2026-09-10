@@ -1,5 +1,7 @@
 Unicode true
 !include "MUI2.nsh"
+!define MUI_ICON "${__FILEDIR__}\..\desktop_app\assets\app.ico"
+!define MUI_UNICON "${__FILEDIR__}\..\desktop_app\assets\app.ico"
 !ifndef BUILD_DIR
 !error "BUILD_DIR must point to the PyInstaller onedir output"
 !endif

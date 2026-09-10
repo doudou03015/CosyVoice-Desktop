@@ -46,6 +46,7 @@ crt_names = {p.name.lower() for p in crt_files}
 a.binaries = [entry for entry in a.binaries if not ('/' not in entry[0].replace('\\','/') and entry[0].lower() in crt_names)]
 a.binaries += [(p.name, str(p), 'BINARY') for p in crt_files]
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='CosyVoice-Desktop', debug=False,
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='CosyVoice-Desktop',
+    icon=str(root / 'desktop_app/assets/app.ico'), debug=False,
     bootloader_ignore_signals=False, strip=False, upx=False, console=False)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='CosyVoice-Desktop')
