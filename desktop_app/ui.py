@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from PySide6.QtCore import QProcess, QThread, QTimer, Qt, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPixmap
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtMultimedia import QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
     QDoubleSpinBox, QFileDialog, QFormLayout, QFrame, QGridLayout, QGroupBox,
@@ -34,7 +34,7 @@ QMainWindow, QWidget#workspace { background: #f4f6fa; color: #1f2937; }
 QLabel { color: #243246; }
 QLabel#title { font-size: 26px; font-weight: 700; color: #18263a; }
 QLabel#subtitle { color: #68768b; font-size: 12px; }
-QLabel#brand { color: white; font-size: 19px; font-weight: 700; padding: 22px 16px 10px; }
+QLabel#brand { color: white; font-size: 19px; font-weight: 700; padding: 0; }
 QLabel#brandNote { color: #9fb2c9; padding: 0px 16px 16px; }
 QFrame#sidebar { background: #142238; border: none; }
 QListWidget#navigation { background: transparent; border: none; color: #aebece; font-size: 14px; }
@@ -209,6 +209,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._verification_mode = verification
         self.setWindowTitle("CosyVoice 配音工作台")
+        self.setWindowIcon(QIcon(str(app_root() / "desktop_app" / "assets" / "app.ico")))
         self.resize(1280, 850)
         self.setMinimumSize(1060, 740)
         self.setStyleSheet(STYLE)
@@ -233,16 +234,26 @@ class MainWindow(QMainWindow):
         self._last_gpu_probe = 0.0
         self._pending_action = None
         self._self_test_signature = ""
+        self._playback_path = ""
+        self._playback_error = ""
+        self._playback_stopped_by_user = False
         self.worker = InferenceProcess(self)
         self.worker.configure(self.settings)
         self.worker.event.connect(self._worker_event)
         self.worker.log.connect(self.append_log)
         self.worker.busy_changed.connect(self.update_busy)
         self.audio_output = QAudioOutput(self)
+        self.media_devices = QMediaDevices(self)
         self.player = QMediaPlayer(self)
         self.player.setAudioOutput(self.audio_output)
-        self.player.errorOccurred.connect(lambda *args: self.append_log("音频播放：" + self.player.errorString()))
+        self.player.errorOccurred.connect(self._playback_failed)
+        self.player.playbackStateChanged.connect(self._update_playback_status)
+        self.player.mediaStatusChanged.connect(self._update_playback_status)
+        self.player.positionChanged.connect(self._update_playback_status)
+        self.player.durationChanged.connect(self._update_playback_status)
         self._build()
+        self.media_devices.audioOutputsChanged.connect(self._audio_outputs_changed)
+        self._sync_audio_device()
         self._restore_text_state()
         self._draft_timer = QTimer(self)
         self._draft_timer.setSingleShot(True)
@@ -265,9 +276,19 @@ class MainWindow(QMainWindow):
         sidebar.setFixedWidth(215)
         side = QVBoxLayout(sidebar)
         side.setContentsMargins(0, 0, 0, 16)
+        brand_row = QHBoxLayout()
+        brand_row.setContentsMargins(16, 22, 12, 10)
+        brand_row.setSpacing(10)
+        brand_icon = QLabel()
+        brand_icon.setObjectName("brandIcon")
+        brand_icon.setFixedSize(48, 48)
+        brand_icon.setScaledContents(True)
+        brand_icon.setPixmap(self.windowIcon().pixmap(96, 96))
+        brand_row.addWidget(brand_icon, 0, Qt.AlignmentFlag.AlignVCenter)
         brand = QLabel("CosyVoice\n配音工作台")
         brand.setObjectName("brand")
-        side.addWidget(brand)
+        brand_row.addWidget(brand, 1, Qt.AlignmentFlag.AlignVCenter)
+        side.addLayout(brand_row)
         small = QLabel("本地生成 · 声音由你选择")
         small.setObjectName("brandNote")
         side.addWidget(small)
@@ -289,6 +310,11 @@ class MainWindow(QMainWindow):
         self.navigation.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.navigation.setCurrentRow(0)
         main.addWidget(self.stack, 1)
+        self.playback_label = QLabel("试听：尚未播放。")
+        self.playback_label.setObjectName("playbackStatus")
+        self.playback_label.setWordWrap(True)
+        self.playback_label.setTextFormat(Qt.TextFormat.PlainText)
+        main.addWidget(self.playback_label)
         self.status_label = QLabel("准备就绪。首次生成将加载模型。")
         self.status_label.setWordWrap(True)
         self.cancel_button = button("取消任务", self.cancel_task)
@@ -364,7 +390,7 @@ class MainWindow(QMainWindow):
         self.text_mp3 = button("导出 MP3", lambda: self.export_text("mp3"))
         for item in (self.text_play, self.text_wav, self.text_mp3):
             item.setEnabled(False)
-        result_layout.addLayout(row(self.text_play, button("停止", self.player.stop)))
+        result_layout.addLayout(row(self.text_play, button("停止", self.stop_playback)))
         result_layout.addLayout(row(self.text_wav, self.text_mp3))
         result_layout.addWidget(button("打开输出文件夹", self.open_outputs))
         right_layout.addWidget(result)
@@ -422,7 +448,7 @@ class MainWindow(QMainWindow):
         edit.addWidget(self.page_text, 1)
         self.page_generate = button("重新生成本页", self.generate_page)
         self.page_play = button("试听本页", self.play_page)
-        edit.addLayout(row(self.page_generate, self.page_play, button("停止", self.player.stop), 1))
+        edit.addLayout(row(self.page_generate, self.page_play, button("停止", self.stop_playback), 1))
         for item in (self.page_text.textChanged, self.page_voice.currentIndexChanged, self.page_speed.valueChanged,
                      self.page_blank.valueChanged, self.page_speed_follow.toggled):
             item.connect(self._page_changed)
@@ -477,7 +503,7 @@ class MainWindow(QMainWindow):
         form.addWidget(self.voice_text, 1)
         form.addLayout(row(button("参考录音", self.preview_library_voice),
                            button("合成示例", lambda: self.preview_library_voice(True)),
-                           button("停止", self.player.stop)))
+                           button("停止", self.stop_playback)))
         form.addWidget(button("用于文本配音", self.use_library_voice, True))
         form.addWidget(note("预设库包含 6 段参考样本，不代表 6 位不同说话人。男声、女声标签来自 FLEURS 原始元数据。"))
         split.addWidget(detail)
@@ -654,11 +680,87 @@ class MainWindow(QMainWindow):
 
     def play(self, path):
         if not path or not Path(path).is_file():
-            self.show_error("音频文件尚未生成或已移动。")
+            self._set_playback_error("音频文件尚未生成或已移动。")
             return
         self.player.stop()
-        self.player.setSource(QUrl.fromLocalFile(str(Path(path).resolve())))
+        self._playback_path = str(Path(path).resolve())
+        self._playback_error = ""
+        self._playback_stopped_by_user = False
+        # A window can remain open while Windows changes its default speaker.
+        # QAudioOutput retains its selected device until explicitly updated.
+        if not self._sync_audio_device(force=True):
+            return
+        self.player.setSource(QUrl.fromLocalFile(self._playback_path))
         self.player.play()
+        self._update_playback_status()
+
+    def stop_playback(self):
+        self._playback_stopped_by_user = True
+        self.player.stop()
+        self._update_playback_status()
+
+    def _sync_audio_device(self, force=False):
+        device = QMediaDevices.defaultAudioOutput()
+        if device.isNull():
+            self.player.stop()
+            self._set_playback_error("未检测到可用的音频输出设备，请连接音箱或耳机后重试。")
+            return False
+        if force or self.audio_output.device().id() != device.id():
+            self.audio_output.setDevice(device)
+            self.append_log("试听输出设备：" + device.description())
+        if self._playback_error.startswith("未检测到可用的音频输出设备"):
+            self._playback_error = ""
+        self._update_playback_status()
+        return True
+
+    def _audio_outputs_changed(self):
+        # This also redirects an ongoing preview when the default changes.
+        self._sync_audio_device()
+
+    def _set_playback_error(self, message):
+        self._playback_error = str(message)
+        self.append_log("音频播放：" + self._playback_error)
+        self._update_playback_status()
+
+    def _playback_failed(self, error, message=""):
+        if error != QMediaPlayer.Error.NoError:
+            self._set_playback_error(message or self.player.errorString() or "无法播放音频，请检查输出设备后重试。")
+
+    def _update_playback_status(self, *args):
+        if not hasattr(self, "playback_label"):
+            return
+        if self._playback_error:
+            self.playback_label.setText("试听失败：" + self._playback_error)
+            self.playback_label.setStyleSheet("color: #b42318;")
+            return
+        self.playback_label.setStyleSheet("color: #395570;")
+        device = self.audio_output.device().description() or "系统默认输出"
+        if not self._playback_path:
+            self.playback_label.setText("试听：尚未播放 · 输出：" + device)
+            return
+        status = self.player.mediaStatus()
+        state = self.player.playbackState()
+        if self._playback_stopped_by_user:
+            message = "已停止"
+        elif status == QMediaPlayer.MediaStatus.EndOfMedia:
+            message = "播放完成"
+        elif status == QMediaPlayer.MediaStatus.InvalidMedia:
+            message = "无法读取音频，请重新选择文件"
+        elif status == QMediaPlayer.MediaStatus.LoadingMedia:
+            message = "正在加载音频"
+        elif status == QMediaPlayer.MediaStatus.StalledMedia:
+            message = "正在缓冲音频"
+        elif state == QMediaPlayer.PlaybackState.PlayingState:
+            message = "正在播放"
+        elif state == QMediaPlayer.PlaybackState.PausedState:
+            message = "已暂停"
+        else:
+            message = "已停止"
+        def timestamp(milliseconds):
+            seconds = max(0, int(milliseconds)) // 1000
+            return f"{seconds // 60:02d}:{seconds % 60:02d}"
+        elapsed = timestamp(self.player.position()) + " / " + timestamp(self.player.duration())
+        self.playback_label.setText(f"试听：{message} · {elapsed} · 输出：{device}\n{Path(self._playback_path).name}")
 
     def open_path(self, path):
         if path and Path(path).exists():

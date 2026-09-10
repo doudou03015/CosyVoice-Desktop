@@ -13,6 +13,9 @@ def main(argv=None):
     if arguments[1:2] == ["--powerpoint-render"]:
         from .documents import render_cli
         return render_cli(arguments[2:])
+    if "--verify-playback" in arguments:
+        from .playback_probe import run
+        return run(arguments[1:])
     verify = "--verify-installation" in arguments
     report_path = None
     if verify:
@@ -25,16 +28,21 @@ def main(argv=None):
         if os.name == "nt":
             import ctypes
             ctypes.windll.kernel32.SetErrorMode(3)
-    from .paths import configure_worker_environment
+    from .paths import app_root, configure_worker_environment
     folder = configure_worker_environment()
+    if os.name == "nt":
+        import ctypes
+        # Give native and source launches the same taskbar identity.
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("CosyVoice.Desktop.Workstation")
     from PySide6.QtCore import QCoreApplication, QEvent, QTimer, Qt
-    from PySide6.QtGui import QFont
+    from PySide6.QtGui import QFont, QIcon
     from PySide6.QtWidgets import QApplication
     from .ui import MainWindow
     app = QApplication(arguments)
     app.setStyle("Fusion")
     app.setApplicationName("CosyVoice 配音工作台")
     app.setOrganizationName("CosyVoice-Desktop")
+    app.setWindowIcon(QIcon(str(app_root() / "desktop_app/assets/app.ico")))
     app.setFont(QFont("Microsoft YaHei UI", 10))
     window = MainWindow(verification=verify)
     if verify:
