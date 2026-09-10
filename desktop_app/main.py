@@ -17,11 +17,14 @@ def main(argv=None):
         from .playback_probe import run
         return run(arguments[1:])
     verify = "--verify-installation" in arguments
+    verify_placement = "--verify-placement" in arguments
     report_path = None
-    if verify:
+    if verify or verify_placement:
         import argparse
         parser = argparse.ArgumentParser(description="CosyVoice 桌面安装自检")
-        parser.add_argument("--verify-installation", action="store_true")
+        modes = parser.add_mutually_exclusive_group(required=True)
+        modes.add_argument("--verify-installation", action="store_true")
+        modes.add_argument("--verify-placement", action="store_true")
         parser.add_argument("--report", required=True)
         options = parser.parse_args(arguments[1:])
         report_path = Path(options.report).resolve()
@@ -44,7 +47,7 @@ def main(argv=None):
     app.setOrganizationName("CosyVoice-Desktop")
     app.setWindowIcon(QIcon(str(app_root() / "desktop_app/assets/app.ico")))
     app.setFont(QFont("Microsoft YaHei UI", 10))
-    window = MainWindow(verification=verify)
+    window = MainWindow(verification=verify or verify_placement)
     if verify:
         completed = False
         deadline = QTimer(window)
@@ -69,7 +72,30 @@ def main(argv=None):
         deadline.timeout.connect(lambda: finish({"complete": False, "error": "安装自检超过 5 分钟，已停止本次检查。"}))
         deadline.start(300_000)
     else:
+        window.prepare_initial_placement()
         window.show()
+        if verify_placement:
+            def finish_placement():
+                screen = app.primaryScreen()
+                frame = window.frameGeometry()
+                available = screen.availableGeometry() if screen else frame
+                def rectangle(value):
+                    return [value.x(), value.y(), value.width(), value.height()]
+                final = {
+                    "complete": bool(screen and window.screen() == screen and available.contains(frame)),
+                    "screen": window.screen().name() if window.screen() else "",
+                    "primary_screen": screen.name() if screen else "",
+                    "available": rectangle(available), "frame": rectangle(frame),
+                    "window_icon_present": not window.windowIcon().isNull(),
+                }
+                try:
+                    report_path.parent.mkdir(parents=True, exist_ok=True)
+                    report_path.write_text(json.dumps(final, ensure_ascii=False, indent=2), encoding="utf-8")
+                except OSError:
+                    app.exit(2)
+                    return
+                app.exit(0 if final["complete"] else 1)
+            QTimer.singleShot(300, window, finish_placement)
     try:
         return app.exec()
     finally:
