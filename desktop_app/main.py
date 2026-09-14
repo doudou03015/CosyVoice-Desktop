@@ -44,9 +44,11 @@ def main(argv=None):
     from PySide6.QtGui import QFont, QIcon
     from PySide6.QtWidgets import QApplication
     from .ui import MainWindow
+    from . import APP_NAME, __version__
     app = QApplication(arguments)
     app.setStyle("Fusion")
-    app.setApplicationName("CosyVoice 配音工作台")
+    app.setApplicationName(APP_NAME)
+    app.setApplicationVersion(__version__)
     app.setOrganizationName("CosyVoice-Desktop")
     app.setWindowIcon(QIcon(str(app_root() / "desktop_app/assets/app.ico")))
     app.setFont(QFont("Microsoft YaHei UI", 10))
@@ -90,6 +92,8 @@ def main(argv=None):
                     "primary_screen": screen.name() if screen else "",
                     "available": rectangle(available), "frame": rectangle(frame),
                     "window_icon_present": not window.windowIcon().isNull(),
+                    "window_title": window.windowTitle(),
+                    "application_version": app.applicationVersion(),
                     "data_directory": str(window.library.root.parent),
                     "voice_ids": [voice["id"] for voice in window.voice_items],
                 }

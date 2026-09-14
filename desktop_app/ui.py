@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 from .paths import app_root, atomic_json, load_settings, relative_to_directory, save_settings, session_dir, user_data_dir
 from .qt_worker import InferenceProcess
 from .window_placement import place_on_primary_screen
-from . import documents, media, projects, voices
+from . import APP_NAME, __version__, documents, media, projects, voices
 
 
 STYLE = """
@@ -232,7 +232,7 @@ class MainWindow(QMainWindow):
     def __init__(self, verification=False):
         super().__init__()
         self._verification_mode = verification
-        self.setWindowTitle("CosyVoice 配音工作台")
+        self.setWindowTitle(f"{APP_NAME} v{__version__}")
         self.setWindowIcon(QIcon(str(app_root() / "desktop_app" / "assets" / "app.ico")))
         self.resize(1280, 850)
         self.setMinimumSize(1060, 740)
