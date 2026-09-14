@@ -58,10 +58,26 @@ thread. `progress(event)` receives `{stage, message, completed, total}`;
   Helper progress/PID/errors use `TEMP/renderer-events.jsonl` rather than stdout,
   because windowed frozen executables can have sys.stdout/sys.stderr set to None.
 - `voices.VoiceLibrary(root=None)` has `list()`, `get(id)`, `add(name,audio,transcript)`,
-  `rename(id,name)`, `delete(id)`. Voice dicts expose id, name, absolute audio,
+  `rename(id,name)`, `delete(id)`, `presets(include_hidden=True)`, `hidden_presets()`,
+  `restore_presets(ids)`. `add` accepts optional keyword `source` for recordings.
+  Voice dicts expose id, name, absolute audio,
   transcript, kind (preset/custom/temporary), source, license, demo_audio.
   `validate_reference(audio,transcript)` returns audio stats or raises ValueError.
   `temporary_voice(audio,transcript)` validates without saving a library entry.
+  Preset deletion records stable IDs in `voices/preset-preferences.json`, separate
+  from custom `voices.json`. Local-only `voices/local-presets/manifest.json` is
+  read before the bundled catalog and deduplicated by ID, including after upgrades.
+  Catalog refresh preserves context selection without emitting synthesis-setting
+  changes. Text draft schema 2 and PPT projects own independent reference copies.
+- `recording.RecordingDialog(parent, mode="library"|"temporary", stop_playback=callable)`
+  opens QAudioSource only after the user starts. `take_result()` after acceptance
+  returns `{audio,transcript,name}`. The caller copies audio to its owned storage,
+  then calls `cleanup()` and `deleteLater()`. Cancellation removes temporary audio.
+  Input device formats are converted to mono PCM16 WAV at a supported rate >=16kHz.
+  Frame count enforces 3–30 seconds; invalid/silent data cannot be saved. No ASR or
+  speaker monitoring is used. Device/permission/read failures close the source.
+  `--verify-recording --report PATH` is an interactive installed-app acceptance
+  entry point; it never automatically starts the microphone.
 - `projects.create_project(pptx,directory,voice=None,speed=1.0) -> dict` immediately
   saves source and optional voice snapshot. `save_project(project,directory,voices=None)`
   accepts an optional dict of id to resolved voice, mutates paths to project-relative

@@ -128,7 +128,8 @@ class VoiceSelector(QGroupBox):
         layout = QVBoxLayout(self)
         self.combo = QComboBox()
         self.combo.setMinimumContentsLength(18)
-        layout.addLayout(row(self.combo, button("试听参考", self.preview)))
+        self.record_button = button("直接录音", self.record_audio)
+        layout.addLayout(row(self.combo, self.record_button, button("试听参考", self.preview)))
         self.temporary = QWidget()
         form = QFormLayout(self.temporary)
         form.setContentsMargins(0, 3, 0, 0)
@@ -151,44 +152,66 @@ class VoiceSelector(QGroupBox):
 
     def refresh(self):
         selected = self.combo.currentData()
-        self.combo.blockSignals(True)
+        initial = self.combo.count() == 0
+        blocked = self.combo.blockSignals(True)
         self.combo.clear()
-        for voice in self.owner.voice_items:
-            self.combo.addItem(voice["name"], voice["id"])
+        self.combo.addItem("请选择音色，或直接录音", "")
+        for voice, suffix in self.owner.voice_options(self.project_context):
+            self.combo.addItem(voice["name"] + suffix, voice["id"])
         self.combo.addItem("＋ 临时参考录音（本次使用）", "__temporary__")
         index = self.combo.findData(selected)
+        if selected and index < 0:
+            self.combo.addItem("原音色不可用（请重新选择）", selected)
+            index = self.combo.count() - 1
+        if initial and self.owner.voice_items:
+            index = self.combo.findData(self.owner.voice_items[0]["id"])
         self.combo.setCurrentIndex(max(0, index))
-        self.combo.blockSignals(False)
-        self._changed()
+        self.combo.blockSignals(blocked)
+        self._changed(emit=False)
 
-    def _changed(self):
+    def _changed(self, *args, emit=True):
         temporary = self.combo.currentData() == "__temporary__"
         self.temporary.setVisible(temporary)
-        item = self.owner.voice_by_id(self.combo.currentData())
+        lookup = self.owner.project_voice_by_id if self.project_context else self.owner.voice_by_id
+        item = lookup(self.combo.currentData())
         self.detail.setText("无需加入音色库；保存工程时会一并保留录音。" if temporary else
-                            ((item or {}).get("source", "") + "  " + (item or {}).get("license", "")))
-        self.changed.emit()
+                            ((item.get("source", "") + "  " + item.get("license", "")) if item else
+                             "可以直接录音、导入音色，或在音色库中恢复预设。"))
+        if emit:
+            self.changed.emit()
 
-    def current(self):
+    def current(self, required=True):
         if self.combo.currentData() == "__temporary__":
             audio, transcript = self.audio.text().strip(), self.transcript.toPlainText().strip()
             source = Path(audio)
             stamp = (source.stat().st_size, source.stat().st_mtime_ns) if source.is_file() else (0, 0)
             key = audio, transcript, stamp
             if key != self._temporary_key:
-                self._temporary_voice = voices.temporary_voice(audio, transcript)
+                try:
+                    self._temporary_voice = voices.temporary_voice(audio, transcript)
+                except (ValueError, OSError):
+                    if not required:
+                        return None
+                    raise
                 self._temporary_key = key
             return dict(self._temporary_voice)
         item = (self.owner.project_voice_by_id(self.combo.currentData()) if self.project_context else
                 self.owner.voice_by_id(self.combo.currentData()))
         if not item:
-            raise ValueError("请先选择一个音色。")
+            if not required:
+                return None
+            raise ValueError("请先选择音色，或点击“直接录音”录制自己的声音。")
         return dict(item)
 
     def select(self, voice_id):
         index = self.combo.findData(voice_id)
-        if index >= 0:
-            self.combo.setCurrentIndex(index)
+        if index < 0 and voice_id:
+            self.combo.addItem("原音色不可用（请重新选择）", voice_id)
+            index = self.combo.count() - 1
+        self.combo.setCurrentIndex(max(0, index))
+
+    def record_audio(self):
+        self.owner.record_temporary_voice(self)
 
     def choose_audio(self):
         filename, _ = QFileDialog.getOpenFileName(self, "选择参考录音", "", "音频 (*.wav *.flac *.mp3 *.ogg);;所有文件 (*)")
@@ -233,6 +256,9 @@ class MainWindow(QMainWindow):
         self._batch_export = None
         self._active_job = None
         self._text_output = None
+        self._text_voice_snapshot = None
+        self._ppt_voice_snapshot = None
+        self._recording_dialog = None
         self._gpu_items = []
         self._last_gpu_probe = 0.0
         self._pending_action = None
@@ -515,8 +541,13 @@ class MainWindow(QMainWindow):
 
     def _voices_page(self):
         page, layout = self._page("你的声音收藏", "预设参考样本、自建音色与临时录音，共用同一个本地配音引擎。")
-        layout.addLayout(row(button("＋ 导入自建音色", self.add_voice, True), button("改名", self.rename_voice),
-                             button("删除自建音色", self.delete_voice), 1))
+        self.voice_record_button = button("录制新音色", self.record_voice, True)
+        self.voice_import_button = button("导入音色", self.add_voice)
+        self.voice_rename_button = button("改名", self.rename_voice)
+        self.voice_delete_button = button("删除音色", self.delete_voice)
+        self.voice_restore_button = button("恢复预设", self.restore_voices)
+        layout.addLayout(row(self.voice_record_button, self.voice_import_button, self.voice_rename_button,
+                             self.voice_delete_button, self.voice_restore_button, 1))
         split = QSplitter(Qt.Orientation.Horizontal)
         self.voice_list = QListWidget()
         self.voice_list.currentRowChanged.connect(self.show_voice)
@@ -534,11 +565,13 @@ class MainWindow(QMainWindow):
         self.voice_text = QPlainTextEdit()
         self.voice_text.setReadOnly(True)
         form.addWidget(self.voice_text, 1)
-        form.addLayout(row(button("参考录音", self.preview_library_voice),
-                           button("合成示例", lambda: self.preview_library_voice(True)),
+        self.voice_preview_button = button("参考录音", self.preview_library_voice)
+        self.voice_demo_button = button("合成示例", lambda: self.preview_library_voice(True))
+        self.voice_use_button = button("用于文本配音", self.use_library_voice, True)
+        form.addLayout(row(self.voice_preview_button, self.voice_demo_button,
                            button("停止", self.stop_playback)))
-        form.addWidget(button("用于文本配音", self.use_library_voice, True))
-        form.addWidget(note("预设库包含 6 段参考样本，不代表 6 位不同说话人。男声、女声标签来自 FLEURS 原始元数据。"))
+        form.addWidget(self.voice_use_button)
+        form.addWidget(note("删除预设会将它从本机列表移除，可随时恢复。工程和草稿已经保留的参考录音仍可使用；参考样本数量不代表不同说话人的数量。"))
         split.addWidget(detail)
         split.setSizes([360, 610])
         layout.addWidget(split, 1)
@@ -652,6 +685,9 @@ class MainWindow(QMainWindow):
         self.text_wav.setEnabled(bool(self._text_output) and not busy)
         self.text_mp3.setEnabled(bool(self._text_output) and not busy)
         self.gpu_combo.setEnabled(not busy)
+        for selector in (self.text_voice, self.ppt_voice):
+            selector.record_button.setEnabled(not busy and self._recording_dialog is None)
+        self._update_voice_actions()
         if not busy:
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
@@ -902,13 +938,11 @@ class MainWindow(QMainWindow):
         self.update_busy()
 
     def voice_by_id(self, voice_id):
+        if self._text_voice_snapshot and self._text_voice_snapshot.get("id") == voice_id:
+            return dict(self._text_voice_snapshot)
         for voice in self.voice_items:
             if voice["id"] == voice_id:
                 return voice
-        if self.project and voice_id in self.project.get("voices", {}):
-            voice = dict(self.project["voices"][voice_id])
-            voice["audio"] = projects.resolve_resource(self.project_dir, voice["audio"])
-            return voice
         return None
 
     def project_voice_by_id(self, voice_id):
@@ -916,27 +950,78 @@ class MainWindow(QMainWindow):
             voice = dict(self.project["voices"][voice_id])
             voice["audio"] = projects.resolve_resource(self.project_dir, voice["audio"])
             return voice
-        return self.voice_by_id(voice_id)
+        if self._ppt_voice_snapshot and self._ppt_voice_snapshot.get("id") == voice_id:
+            return dict(self._ppt_voice_snapshot)
+        return next((voice for voice in self.voice_items if voice["id"] == voice_id), None)
 
-    def _refresh_voice_list(self):
+    def voice_options(self, project_context=False):
+        options = [(voice, "") for voice in self.voice_items]
+        seen = {voice["id"] for voice in self.voice_items}
+        archived = {}
+        if project_context:
+            if self.project:
+                archived.update(self.project.get("voices", {}))
+            if self._ppt_voice_snapshot:
+                archived.setdefault(self._ppt_voice_snapshot["id"], self._ppt_voice_snapshot)
+        elif self._text_voice_snapshot:
+            archived[self._text_voice_snapshot["id"]] = self._text_voice_snapshot
+        for voice_id, voice in archived.items():
+            if voice_id not in seen:
+                options.append((voice, "（工程保留）" if project_context else "（草稿保留）"))
+        return options
+
+    def _refresh_voice_list(self, selected_id=None):
+        old_index = self.voice_list.currentRow()
+        if selected_id is None and 0 <= old_index < len(self.voice_items):
+            selected_id = self.voice_items[old_index]["id"]
         self.voice_items = self.library.list()
-        selected = self.voice_list.currentRow()
+        blocked = self.voice_list.blockSignals(True)
         self.voice_list.clear()
         for voice in self.voice_items:
             tag = "自建" if voice.get("kind") == "custom" else "预设"
             self.voice_list.addItem(f"{voice['name']}\n{tag} · {voice.get('license', '')}")
-        self.voice_list.setCurrentRow(max(0, min(selected, len(self.voice_items) - 1)))
+        index = next((i for i, voice in enumerate(self.voice_items) if voice["id"] == selected_id),
+                     min(max(0, old_index), len(self.voice_items) - 1))
+        self.voice_list.setCurrentRow(index)
+        self.voice_list.blockSignals(blocked)
         self.text_voice.refresh()
         self.ppt_voice.refresh()
         self._refresh_page_voices()
+        self.show_voice(index)
+
+    def _voice_changes_allowed(self):
+        if self.worker.busy or self._background is not None or self._batch or self._recording_dialog is not None:
+            self.show_error("请先等待当前任务或录音结束，再管理音色。")
+            return False
+        return True
+
+    def _update_voice_actions(self):
+        if not hasattr(self, "voice_record_button"):
+            return
+        busy = self.worker.busy or self._background is not None or bool(self._batch) or self._recording_dialog is not None
+        index = self.voice_list.currentRow()
+        voice = self.voice_items[index] if 0 <= index < len(self.voice_items) else None
+        self.voice_record_button.setEnabled(not busy)
+        self.voice_import_button.setEnabled(not busy)
+        self.voice_restore_button.setEnabled(not busy and bool(self.library.hidden_presets()))
+        self.voice_delete_button.setEnabled(not busy and voice is not None)
+        self.voice_rename_button.setEnabled(not busy and bool(voice and voice.get("kind") == "custom"))
+        self.voice_preview_button.setEnabled(voice is not None)
+        self.voice_demo_button.setEnabled(bool(voice and voice.get("demo_audio")))
+        self.voice_use_button.setEnabled(not busy and voice is not None)
 
     def show_voice(self, index):
         if index < 0 or index >= len(self.voice_items):
+            self.voice_name.setText("音色库为空")
+            self.voice_source.setText("可以录制自己的声音、导入录音，或恢复预设音色。")
+            self.voice_text.clear()
+            self._update_voice_actions()
             return
         voice = self.voice_items[index]
         self.voice_name.setText(voice["name"])
         self.voice_source.setText(f"{voice.get('source', '')}\n{voice.get('license', '')}")
         self.voice_text.setPlainText(voice["transcript"])
+        self._update_voice_actions()
 
     def preview_library_voice(self, demo=False):
         index = self.voice_list.currentRow()
@@ -956,6 +1041,8 @@ class MainWindow(QMainWindow):
             self.navigation.setCurrentRow(0)
 
     def add_voice(self):
+        if not self._voice_changes_allowed():
+            return
         dialog = QDialog(self)
         dialog.setWindowTitle("导入自建音色")
         dialog.resize(610, 390)
@@ -979,9 +1066,9 @@ class MainWindow(QMainWindow):
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
         def save():
             try:
-                self.library.add(name.text().strip(), audio.text().strip(), text.toPlainText().strip())
+                voice = self.library.add(name.text().strip(), audio.text().strip(), text.toPlainText().strip())
                 dialog.accept()
-                self._refresh_voice_list()
+                self._refresh_voice_list(voice["id"])
             except Exception as exc:
                 QMessageBox.warning(dialog, "无法保存音色", str(exc))
         buttons.accepted.connect(save)
@@ -990,6 +1077,8 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def rename_voice(self):
+        if not self._voice_changes_allowed():
+            return
         index = self.voice_list.currentRow()
         if index < 0:
             return
@@ -1006,19 +1095,116 @@ class MainWindow(QMainWindow):
                 self.show_error(str(exc))
 
     def delete_voice(self):
+        if not self._voice_changes_allowed():
+            return
         index = self.voice_list.currentRow()
         if index < 0:
             return
         voice = self.voice_items[index]
-        if voice.get("kind") != "custom":
-            self.show_error("预设音色不能在这里删除。")
-            return
-        if QMessageBox.question(self, "删除自建音色", f"删除“{voice['name']}”？已保存工程里的录音副本会保留。") == QMessageBox.StandardButton.Yes:
+        detail = "预设会从本机列表移除，可通过“恢复预设”找回。" if voice.get("kind") == "preset" else "音色库中的录音将被删除。"
+        if QMessageBox.question(self, "删除音色", f"删除“{voice['name']}”？\n{detail}\n当前草稿、工程的参考副本和已生成音频会保留。") == QMessageBox.StandardButton.Yes:
             try:
+                self._preserve_voice_contexts()
+                if self._playback_path and Path(self._playback_path).resolve() == Path(voice["audio"]).resolve():
+                    self.stop_playback()
+                    self.player.setSource(QUrl())
                 self.library.delete(voice["id"])
                 self._refresh_voice_list()
             except Exception as exc:
                 self.show_error(str(exc))
+
+    def _preserve_voice_contexts(self):
+        # Persist before destructive custom deletion, while original files exist.
+        self._save_text_state(strict=True)
+        if self.project:
+            self._snapshot_project()
+        else:
+            voice = self.ppt_voice.current(required=False)
+            if voice:
+                self._ppt_voice_snapshot = self._copy_voice_snapshot(voice, session_dir() / "ppt-reference")
+                if self.ppt_voice.combo.currentData() == "__temporary__":
+                    self._bind_temporary_snapshot(self.ppt_voice, self._ppt_voice_snapshot)
+
+    def restore_voices(self):
+        if not self._voice_changes_allowed():
+            return
+        hidden = self.library.hidden_presets()
+        if not hidden:
+            self.status_label.setText("当前没有已删除的预设音色。")
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("恢复预设音色")
+        dialog.resize(500, 380)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(note("勾选要放回本机音色库的预设；已有工程和草稿的选择保持不变。"))
+        choices = QListWidget()
+        for voice in hidden:
+            item = QListWidgetItem(voice["name"])
+            item.setData(Qt.ItemDataRole.UserRole, voice["id"])
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Unchecked)
+            choices.addItem(item)
+        layout.addWidget(choices, 1)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("恢复选中音色")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
+        def restore():
+            selected = [choices.item(i).data(Qt.ItemDataRole.UserRole) for i in range(choices.count())
+                        if choices.item(i).checkState() == Qt.CheckState.Checked]
+            if not selected:
+                QMessageBox.information(dialog, "选择音色", "请至少勾选一个预设音色。")
+                return
+            try:
+                self.library.restore_presets(selected)
+                self._refresh_voice_list()
+                self.status_label.setText(f"已恢复 {len(selected)} 个预设音色。")
+                dialog.accept()
+            except Exception as exc:
+                QMessageBox.warning(dialog, "恢复失败", str(exc))
+        buttons.accepted.connect(restore)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def record_voice(self):
+        self._record_voice(None)
+
+    def record_temporary_voice(self, selector):
+        self._record_voice(selector)
+
+    def _record_voice(self, selector):
+        if not self._voice_changes_allowed():
+            return
+        from .recording import RecordingDialog
+        dialog = RecordingDialog(self, mode="temporary" if selector else "library", stop_playback=self.stop_playback)
+        self._recording_dialog = dialog
+        self.update_busy()
+        try:
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            result = dialog.take_result()
+            if selector is None:
+                voice = self.library.add(result["name"], result["audio"], result["transcript"], source="软件录制")
+                self._refresh_voice_list(voice["id"])
+                self.status_label.setText("录制的声音已加入音色库。")
+            else:
+                target = session_dir() / ("recorded-reference-" + uuid4().hex + ".wav")
+                shutil.copyfile(result["audio"], target)
+                selector.audio.setText(str(target))
+                selector.transcript.setPlainText(result["transcript"])
+                selector.select("__temporary__")
+                if selector is self.text_voice:
+                    self._save_text_state(strict=True)
+                self.status_label.setText("参考录音已就绪，可以生成配音。")
+        except Exception as exc:
+            self.show_error(str(exc))
+        finally:
+            try:
+                dialog.cleanup()
+            finally:
+                dialog.deleteLater()
+                self._recording_dialog = None
+                self.update_busy()
 
     def _confirm_replace_project(self):
         if self.worker.busy or self._background:
@@ -1044,7 +1230,7 @@ class MainWindow(QMainWindow):
             return
         folder = Path(parent) / (Path(path).stem + "_配音工程_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
         try:
-            voice = self.ppt_voice.current()
+            voice = self.ppt_voice.current(required=False)
             speed = self.ppt_speed.value()
             def build(progress, cancel):
                 progress({"message": "正在读取 PPT 备注并创建工程……"})
@@ -1106,11 +1292,7 @@ class MainWindow(QMainWindow):
         self.update_busy()
 
     def _include_project_voices(self):
-        if not self.project:
-            return
-        for voice_id, voice in self.project.get("voices", {}).items():
-            if self.ppt_voice.combo.findData(voice_id) < 0:
-                self.ppt_voice.combo.insertItem(max(0, self.ppt_voice.combo.count() - 1), voice.get("name", "工程音色") + "（工程）", voice_id)
+        self.ppt_voice.refresh()
         self._refresh_page_voices()
 
     def _refresh_page_voices(self):
@@ -1215,20 +1397,25 @@ class MainWindow(QMainWindow):
 
     def _snapshot_project(self):
         self._commit_page()
-        voice = self.ppt_voice.current()
-        self.project.setdefault("settings", {}).update(voice_id=voice["id"], speed=self.ppt_speed.value(),
+        voice = self.ppt_voice.current(required=False)
+        selected_id = self.ppt_voice.combo.currentData() or ""
+        if selected_id == "__temporary__":
+            selected_id = ""
+        self.project.setdefault("settings", {}).update(voice_id=voice["id"] if voice else selected_id, speed=self.ppt_speed.value(),
                                                         seed=0, tail_silence=self.ppt_tail.value())
-        selected = {voice["id"]: voice}
+        selected = {voice["id"]: voice} if voice else {}
         for slide in self.project["slides"]:
             voice_id = slide.get("voice_id")
             if voice_id:
                 item = self.project_voice_by_id(voice_id)
-                if not item:
-                    raise ValueError(f"第 {slide['number']} 页使用的音色不可用，请重新选择。")
-                selected[voice_id] = item
+                if item:
+                    selected[voice_id] = item
         self.project["model_id"] = "Fun-CosyVoice3-0.5B-2512"
         self.project["runtime_id"] = self.settings.get("runtime_id", "")
         projects.save_project(self.project, self.project_dir, voices=selected)
+        if voice and self.ppt_voice.combo.currentData() == "__temporary__":
+            archived = self.project_voice_by_id(voice["id"])
+            self._bind_temporary_snapshot(self.ppt_voice, archived)
         self._dirty = False
 
     def save_project(self):
@@ -1340,7 +1527,7 @@ class MainWindow(QMainWindow):
                 effective = projects.effective_settings(self.project, slide)
                 voice = self.project_voice_by_id(effective["voice_id"])
                 if not voice:
-                    raise ValueError(f"第 {slide['number']} 页的参考音色不可用。")
+                    raise ValueError(f"第 {slide['number']} 页需要配音，请先选择音色或直接录音；也可在音色库恢复预设。")
                 fingerprint = projects.fingerprint(slide["text"], voice, effective["speed"], effective["seed"],
                                                    self.project["model_id"], self.project["runtime_id"])
                 cached = None if force else projects.cached_audio(slide, self.project_dir, fingerprint)
@@ -1494,43 +1681,106 @@ class MainWindow(QMainWindow):
         if callback:
             QTimer.singleShot(0, callback)
 
-    def _save_text_state(self):
+    def _copy_voice_snapshot(self, voice, directory):
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        source = Path(voice["audio"]).resolve()
+        # Content naming avoids overwriting a previously committed draft while
+        # recording or choosing a replacement voice, and reuses identical audio.
+        digest = documents.sha256(source)
+        target = directory / ("reference-" + digest + source.suffix.lower())
+        if source != target.resolve() and (not target.exists() or documents.sha256(target) != digest):
+            shutil.copyfile(source, target)
+        result = {key: value for key, value in voice.items() if key not in ("demo_audio", "validation")}
+        result["audio"] = str(target.resolve())
+        return result
+
+    def _bind_temporary_snapshot(self, selector, voice):
+        blocked = selector.audio.blockSignals(True)
+        selector.audio.setText(voice["audio"])
+        selector.audio.blockSignals(blocked)
+        stamp = Path(voice["audio"]).stat()
+        selector._temporary_voice = dict(voice)
+        selector._temporary_key = (voice["audio"], selector.transcript.toPlainText().strip(),
+                                   (stamp.st_size, stamp.st_mtime_ns))
+
+    def _save_text_state(self, strict=False):
         try:
             directory = user_data_dir() / "text-session"
-            state = {"text": self.text_edit.toPlainText(), "voice_id": self.text_voice.combo.currentData(),
+            state = {"schema_version": 2, "text": self.text_edit.toPlainText(), "voice_id": self.text_voice.combo.currentData(),
                      "speed": self.text_speed.value(), "seed": self.text_seed.value(),
                      "output": self._text_output or "", "result_text": self.text_result.text()}
+            voice = self.text_voice.current(required=False)
+            snapshot = self._copy_voice_snapshot(voice, directory) if voice else None
+            if snapshot:
+                state["voice"] = dict(snapshot, audio=Path(snapshot["audio"]).relative_to(directory).as_posix())
             if state["voice_id"] == "__temporary__":
                 original = Path(self.text_voice.audio.text().strip())
-                state["transcript"] = self.text_voice.transcript.toPlainText()
+                pending = {"transcript": self.text_voice.transcript.toPlainText()}
                 if original.is_file():
-                    directory.mkdir(parents=True, exist_ok=True)
-                    reference = directory / ("reference" + original.suffix.lower())
-                    if original.resolve() != reference.resolve():
-                        shutil.copyfile(original, reference)
-                    state["audio"] = str(reference)
+                    reference = snapshot or self._copy_voice_snapshot({"audio": str(original)}, directory)
+                    pending["audio"] = Path(reference["audio"]).relative_to(directory).as_posix()
+                state["temporary"] = pending
             atomic_json(directory / "draft.json", state)
+            self._text_voice_snapshot = snapshot
+            if snapshot and state["voice_id"] == "__temporary__":
+                self._bind_temporary_snapshot(self.text_voice, snapshot)
+            return True
         except Exception as exc:
+            if strict:
+                raise
             self.append_log("文本草稿保存失败：" + str(exc))
+            return False
 
     def _restore_text_state(self):
+        directory = user_data_dir() / "text-session"
         try:
-            state = json.loads((user_data_dir() / "text-session" / "draft.json").read_text(encoding="utf-8"))
+            state = json.loads((directory / "draft.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return
+        selected = state.get("voice_id", "")
+        snapshot = None
+        try:
+            if state.get("voice"):
+                snapshot = dict(state["voice"])
+                snapshot["audio"] = projects.resolve_resource(directory, snapshot["audio"])
+                if not Path(snapshot["audio"]).is_file():
+                    self.append_log("草稿参考录音副本不存在，请重新选择或录制音色。")
+                    snapshot = None
+            elif selected and selected != "__temporary__":
+                candidates = self.voice_items + self.library.presets(include_hidden=True)
+                old = next((voice for voice in candidates if voice["id"] == selected), None)
+                if old:
+                    snapshot = self._copy_voice_snapshot(old, directory)
+        except (OSError, ValueError) as exc:
+            self.append_log("草稿音色恢复失败：" + str(exc))
+        self._text_voice_snapshot = snapshot
         self.text_edit.setPlainText(str(state.get("text", "")))
-        self.text_voice.select(state.get("voice_id", ""))
+        self.text_voice.refresh()
+        self.text_voice.select(selected)
         self.text_speed.setValue(float(state.get("speed", 1)))
         self.text_seed.setValue(int(state.get("seed", 0)))
-        if state.get("voice_id") == "__temporary__":
-            self.text_voice.audio.setText(state.get("audio", ""))
-            self.text_voice.transcript.setPlainText(state.get("transcript", ""))
+        if selected == "__temporary__":
+            pending = state.get("temporary", {})
+            audio = state.get("audio", "")  # Legacy drafts stored an absolute path.
+            if pending.get("audio"):
+                try:
+                    audio = projects.resolve_resource(directory, pending["audio"])
+                except ValueError as exc:
+                    audio = ""
+                    self.append_log("草稿临时录音路径无效：" + str(exc))
+            self.text_voice.audio.setText(audio or (snapshot or {}).get("audio", ""))
+            self.text_voice.transcript.setPlainText(pending.get("transcript", state.get("transcript", (snapshot or {}).get("transcript", ""))))
+            if snapshot:
+                self._bind_temporary_snapshot(self.text_voice, snapshot)
         output = state.get("output")
         if output and Path(output).is_file():
             self._text_output = output
             self.text_result.setText(state.get("result_text", "已恢复上一次生成结果。"))
             for item in (self.text_play, self.text_wav, self.text_mp3):
                 item.setEnabled(True)
+        # Migrate named and legacy temporary references while originals exist.
+        self._save_text_state()
 
     def browse_setting(self, key, directory):
         if directory:
@@ -1722,10 +1972,9 @@ class MainWindow(QMainWindow):
             if not gpu or (gpu.get("status") != "compatible" and not (gpu.get("status") == "busy" and own_model_loaded)):
                 raise ValueError((gpu or {}).get("message", "未检测到符合要求的 NVIDIA 显卡，请先完成显卡检测。"))
             self._self_test_signature = self._environment_signature()
-            voice = self.voice_items[0]
             self._active_job = {"kind": "self_test"}
             self.worker.submit("self_test", text="你好，欢迎使用本地配音工作台。现在进行显卡与语音生成检查。",
-                               ref_audio=voice["audio"], ref_text=voice["transcript"], speed=1.0, seed=0,
+                               speed=1.0, seed=0,
                                output_path=str(session_dir() / "self-test.wav"))
             self._progress({"message": "正在执行 CUDA 运算与实际短句合成自检……"})
         except Exception as exc:

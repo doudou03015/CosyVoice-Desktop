@@ -16,6 +16,9 @@ def main(argv=None):
     if "--verify-playback" in arguments:
         from .playback_probe import run
         return run(arguments[1:])
+    if "--verify-recording" in arguments:
+        from .recording_probe import run
+        return run(arguments[1:])
     verify = "--verify-installation" in arguments
     verify_placement = "--verify-placement" in arguments
     report_path = None
