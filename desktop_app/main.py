@@ -90,6 +90,7 @@ def main(argv=None):
                     "primary_screen": screen.name() if screen else "",
                     "available": rectangle(available), "frame": rectangle(frame),
                     "window_icon_present": not window.windowIcon().isNull(),
+                    "voice_ids": [voice["id"] for voice in window.voice_items],
                 }
                 try:
                     report_path.parent.mkdir(parents=True, exist_ok=True)

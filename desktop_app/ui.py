@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from .paths import app_root, atomic_json, load_settings, save_settings, session_dir, user_data_dir
+from .paths import app_root, atomic_json, load_settings, relative_to_directory, save_settings, session_dir, user_data_dir
 from .qt_worker import InferenceProcess
 from .window_placement import place_on_primary_screen
 from . import documents, media, projects, voices
@@ -1179,6 +1179,12 @@ class MainWindow(QMainWindow):
         dialog = RecordingDialog(self, mode="temporary" if selector else "library", stop_playback=self.stop_playback)
         self._recording_dialog = dialog
         self.update_busy()
+        result = None
+        cleanup_recording = True
+        previous_reference = None
+        if selector is not None:
+            previous_reference = (selector.combo.currentData(), selector.audio.text(), selector.transcript.toPlainText(),
+                                  selector._temporary_voice, selector._temporary_key, self._text_voice_snapshot)
         try:
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return
@@ -1197,10 +1203,49 @@ class MainWindow(QMainWindow):
                     self._save_text_state(strict=True)
                 self.status_label.setText("参考录音已就绪，可以生成配音。")
         except Exception as exc:
-            self.show_error(str(exc))
+            if previous_reference is not None:
+                chosen, audio, transcript, voice, key, snapshot = previous_reference
+                controls = (selector.combo, selector.audio, selector.transcript)
+                blocked = [control.blockSignals(True) for control in controls]
+                try:
+                    selector.audio.setText(audio)
+                    selector.transcript.setPlainText(transcript)
+                    selector.select(chosen)
+                    selector._temporary_voice, selector._temporary_key = voice, key
+                    self._text_voice_snapshot = snapshot
+                finally:
+                    for control, was_blocked in zip(controls, blocked):
+                        control.blockSignals(was_blocked)
+                selector._changed(emit=False)
+            message = str(exc)
+            if result:
+                recovery = None
+                preserved_audio = None
+                try:
+                    recovery = user_data_dir() / "recording-recovery" / uuid4().hex
+                    recovery.mkdir(parents=True, exist_ok=False)
+                    preserved_audio = recovery / "recording.wav"
+                    shutil.copyfile(result["audio"], preserved_audio)
+                    if documents.sha256(preserved_audio) != documents.sha256(result["audio"]):
+                        raise OSError("恢复录音校验失败。")
+                    atomic_json(recovery / "recording.json", {
+                        "audio": "recording.wav", "name": result["name"],
+                        "transcript": result["transcript"], "source": "软件录制",
+                    })
+                    message += f"\n\n录音、名称和原文已保留到：\n{recovery}\n可从音色库重新导入 recording.wav，并使用 recording.json 中的原文。"
+                except Exception as recovery_error:
+                    # Acceptance already stopped capture and playback. If even
+                    # recovery storage fails, keep the sole original recording.
+                    cleanup_recording = False
+                    message += (f"\n\n恢复副本保存失败：{recovery_error}\n原录音仍保留在：\n{result['audio']}"
+                                f"\n请关闭软件前复制该录音。\n音色名称：{result['name']}\n原文：{result['transcript']}")
+                    if preserved_audio and preserved_audio.is_file():
+                        message += f"\n恢复目录中的文件：{preserved_audio}"
+            self.show_error(message)
         finally:
             try:
-                dialog.cleanup()
+                if cleanup_recording:
+                    dialog.cleanup()
             finally:
                 dialog.deleteLater()
                 self._recording_dialog = None
@@ -1244,7 +1289,7 @@ class MainWindow(QMainWindow):
                         for slide in project["slides"]:
                             image = images.get(slide["number"])
                             if image:
-                                slide["image"] = str(Path(image).relative_to(folder)).replace("\\", "/")
+                                slide["image"] = relative_to_directory(image, folder).as_posix()
                     except Exception as exc:
                         render_error = str(exc)
                 else:
@@ -1598,7 +1643,7 @@ class MainWindow(QMainWindow):
                 images = documents.render_pptx(source, self.project_dir / "images", progress=progress, cancel=cancel)
                 for slide in self.project["slides"]:
                     if slide["number"] in images:
-                        slide["image"] = str(Path(images[slide["number"]]).relative_to(self.project_dir)).replace("\\", "/")
+                        slide["image"] = relative_to_directory(images[slide["number"]], self.project_dir).as_posix()
                 projects.save_project(self.project, self.project_dir)
             gpu = next((x for x in self._gpu_items if x["uuid"] == self.settings.get("gpu_uuid")), {})
             return media.export_video(selected, self.project_dir, destination, ffmpeg=self.ffmpeg(),
@@ -1713,13 +1758,13 @@ class MainWindow(QMainWindow):
             voice = self.text_voice.current(required=False)
             snapshot = self._copy_voice_snapshot(voice, directory) if voice else None
             if snapshot:
-                state["voice"] = dict(snapshot, audio=Path(snapshot["audio"]).relative_to(directory).as_posix())
+                state["voice"] = dict(snapshot, audio=relative_to_directory(snapshot["audio"], directory).as_posix())
             if state["voice_id"] == "__temporary__":
                 original = Path(self.text_voice.audio.text().strip())
                 pending = {"transcript": self.text_voice.transcript.toPlainText()}
                 if original.is_file():
                     reference = snapshot or self._copy_voice_snapshot({"audio": str(original)}, directory)
-                    pending["audio"] = Path(reference["audio"]).relative_to(directory).as_posix()
+                    pending["audio"] = relative_to_directory(reference["audio"], directory).as_posix()
                 state["temporary"] = pending
             atomic_json(directory / "draft.json", state)
             self._text_voice_snapshot = snapshot

@@ -72,6 +72,7 @@ def test_accepted_recording_saved_before_temporary_cleanup(probe_env, monkeypatc
     assert run_probe(probe_env) == 0
     report = json.loads(probe_env.report.read_text(encoding="utf-8"))
     assert report["complete"] and report["started_by_user"]
+    assert report["recording_validated"] and report["recording"]["duration"] == 3.25
     voice = report["voice"]
     assert Path(voice["audio"]).is_file()
     assert voice["source"] == "软件内录制" and report["audio"]["duration"] == 3.25
@@ -89,8 +90,29 @@ def test_library_save_failure_is_reported_and_capture_is_cleaned(probe_env, monk
     assert run_probe(probe_env) == 1
     report = json.loads(probe_env.report.read_text(encoding="utf-8"))
     assert not report["complete"] and report["error"] == "模拟音色库写入失败"
+    assert report["started_by_user"] and report["recording_validated"]
+    assert report["recording"]["duration"] == 3.25 and len(report["recording"]["sha256"]) == 64
+    assert report["recording_transcript"] == recording.DEFAULT_TRANSCRIPT
+    assert report["recording_name"] == "我的录音音色"
     assert not list(probe_env.folder.glob("recording-*.wav"))
     assert probe_env.warnings
+
+
+def test_post_save_lookup_failure_preserves_library_audio_and_capture_evidence(probe_env, monkeypatch):
+    execute_with_action(monkeypatch, lambda dialog: accepted_recording(probe_env, dialog))
+
+    def lookup_failure(self, voice_id):
+        raise ValueError("模拟保存后读取路径失败")
+
+    monkeypatch.setattr(voices.VoiceLibrary, "get", lookup_failure)
+    assert run_probe(probe_env) == 1
+    report = json.loads(probe_env.report.read_text(encoding="utf-8"))
+    assert report["recording_validated"] and not report["complete"]
+    assert report["error"] == "模拟保存后读取路径失败"
+    saved = list((probe_env.folder / "isolated-data" / "voices").glob("custom-*.wav"))
+    assert len(saved) == 1
+    stats = voices.validate_reference(saved[0], report["recording_transcript"])
+    assert stats["sha256"] == report["recording"]["sha256"]
 
 
 def test_setup_failure_still_writes_failure_report(probe_env, monkeypatch):

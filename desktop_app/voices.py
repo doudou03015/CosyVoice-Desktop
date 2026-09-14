@@ -8,7 +8,7 @@ import shutil
 from uuid import uuid4
 
 from .documents import sha256
-from .paths import app_root, atomic_json, outside_sync, session_dir, user_data_dir
+from .paths import app_root, atomic_json, outside_sync, relative_to_directory, session_dir, user_data_dir
 
 
 def validate_reference(audio, transcript):
@@ -100,17 +100,26 @@ class VoiceLibrary:
                 if voice_id in hidden:
                     continue
                 audio = (base / row["reference_audio"]).resolve()
-                if base not in audio.parents or not audio.is_file():
+                try:
+                    relative_to_directory(audio, base)
+                except ValueError:
+                    continue
+                if not audio.is_file():
                     continue
                 seen.add(voice_id)
                 demo = (base / row.get("demo_audio", "")).resolve()
+                try:
+                    relative_to_directory(demo, base)
+                    demo_path = str(demo) if demo.is_file() else ""
+                except ValueError:
+                    demo_path = ""
                 result.append(dict(id=voice_id, name=row["name"], audio=str(audio),
                                    transcript=row["transcript"], kind="preset",
                                    source=row.get("source_page", ""), license=row.get("license", ""),
                                    attribution=row.get("attribution", ""),
                                    license_url=row.get("license_url", ""),
                                    distribution=row.get("distribution", "bundled"),
-                                   demo_audio=str(demo) if base in demo.parents and demo.is_file() else ""))
+                                   demo_audio=demo_path))
         return result
 
     def hidden_presets(self):
@@ -129,8 +138,10 @@ class VoiceLibrary:
         for row in self._custom():
             item = dict(row)
             audio = (self.root / row["audio"]).resolve()
-            if self.root not in audio.parents:
-                raise ValueError("音色库包含不安全的文件路径。")
+            try:
+                relative_to_directory(audio, self.root)
+            except ValueError as error:
+                raise ValueError("音色库包含不安全的文件路径。") from error
             item["audio"] = str(audio)
             result.append(item)
         return result
@@ -183,7 +194,11 @@ class VoiceLibrary:
         if selected is None:
             raise ValueError("未找到要删除的音色。")
         path = (self.root / selected["audio"]).resolve()
-        if self.root not in path.parents or not re.fullmatch(r"custom-[a-f0-9]{32}\.wav", path.name):
+        try:
+            relative_to_directory(path, self.root)
+        except ValueError as error:
+            raise ValueError("音色文件路径不正确。") from error
+        if not re.fullmatch(r"custom-[a-f0-9]{32}\.wav", path.name):
             raise ValueError("音色文件路径不正确。")
         # Commit metadata first. Saved projects own independent snapshots of this file.
         self._save([row for row in rows if row["id"] != voice_id])

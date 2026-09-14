@@ -21,6 +21,27 @@ def outside_sync(path: str | Path) -> Path:
     return result
 
 
+def relative_to_directory(path: str | Path, directory: str | Path) -> Path:
+    """Containment by directory identity, including Windows AppData aliases.
+
+    Packaged Windows applications can resolve a file to LocalCache while its
+    parent still resolves to AppData. Only an ancestor with the same filesystem
+    identity as the requested directory is accepted; unrelated paths and
+    symlinks escaping that directory remain rejected.
+    """
+    result, root = Path(path).resolve(), Path(directory).resolve()
+    try:
+        return result.relative_to(root)
+    except ValueError:
+        for ancestor in (result, *result.parents):
+            try:
+                if ancestor.samefile(root):
+                    return result.relative_to(ancestor)
+            except OSError:
+                continue
+    raise ValueError("资源路径越界。")
+
+
 def app_root() -> Path:
     override = os.environ.get("COSYVOICE_DESKTOP_ROOT")
     if override:

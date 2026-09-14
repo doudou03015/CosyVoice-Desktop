@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QListWidg
 from pptx import Presentation
 
 from desktop_app import paths, projects, ui
+from tests_desktop.test_path_aliases import alias_directory
 
 
 @pytest.fixture
@@ -301,4 +302,111 @@ def test_recording_result_is_copied_before_dialog_cleanup(window, tmp_path, monk
     assert not original.exists()
     assert calls == ["temporary" if temporary else "library", "cleanup", "deleted"]
     assert window._recording_dialog is None
+    assert not window.test_errors
+    assert not (paths.user_data_dir() / "recording-recovery").exists()
+
+
+@pytest.mark.parametrize("temporary", [False, True])
+def test_failed_recording_save_preserves_audio_and_text_without_changing_voice(window, tmp_path, monkeypatch, temporary):
+    from desktop_app import recording
+    sample = window.text_voice.current()
+    original = tmp_path / "accepted-recording.wav"
+    shutil.copyfile(sample["audio"], original)
+    expected_hash = ui.documents.sha256(original)
+    calls = []
+    class Dialog:
+        def __init__(self, *args, **kwargs):
+            pass
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+        def take_result(self):
+            return {"audio": str(original), "transcript": sample["transcript"], "name": "等待恢复的录音"}
+        def cleanup(self):
+            original.unlink(missing_ok=True)
+            calls.append("cleanup")
+        def deleteLater(self):
+            calls.append("deleted")
+    def fail(*args, **kwargs):
+        raise OSError("无法保存音色")
+    monkeypatch.setattr(recording, "RecordingDialog", Dialog)
+    with monkeypatch.context() as patch:
+        if temporary:
+            patch.setattr(window, "_save_text_state", fail)
+            window.record_temporary_voice(window.text_voice)
+        else:
+            patch.setattr(window.library, "add", fail)
+            window.record_voice()
+    recovery_dirs = list((paths.user_data_dir() / "recording-recovery").iterdir())
+    assert len(recovery_dirs) == 1
+    recovery = recovery_dirs[0]
+    saved = json.loads((recovery / "recording.json").read_text(encoding="utf-8"))
+    assert saved["name"] == "等待恢复的录音"
+    assert saved["transcript"] == sample["transcript"]
+    assert ui.documents.sha256(recovery / saved["audio"]) == expected_hash
+    assert str(recovery) in window.test_errors[-1]
+    assert window.text_voice.current()["id"] == sample["id"]
+    assert len(window.library.list()) == 6
+    assert not original.exists()
+    assert calls == ["cleanup", "deleted"]
+    assert window._recording_dialog is None
+
+
+def test_recovery_storage_failure_does_not_delete_only_recording(window, tmp_path, monkeypatch):
+    from desktop_app import recording
+    sample = window.voice_items[0]
+    original = tmp_path / "only-recording.wav"
+    shutil.copyfile(sample["audio"], original)
+    calls = []
+    class Dialog:
+        def __init__(self, *args, **kwargs):
+            pass
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+        def take_result(self):
+            return {"audio": str(original), "transcript": sample["transcript"], "name": "只此一份"}
+        def cleanup(self):
+            original.unlink()
+            calls.append("cleanup")
+        def deleteLater(self):
+            calls.append("deleted")
+    def fail(*args, **kwargs):
+        raise OSError("磁盘不可写")
+    monkeypatch.setattr(recording, "RecordingDialog", Dialog)
+    with monkeypatch.context() as patch:
+        patch.setattr(window.library, "add", fail)
+        patch.setattr(ui.shutil, "copyfile", fail)
+        window.record_voice()
+    assert original.is_file()
+    assert str(original) in window.test_errors[-1]
+    assert sample["transcript"] in window.test_errors[-1]
+    assert "关闭软件前复制" in window.test_errors[-1]
+    assert calls == ["deleted"]
+    assert window._recording_dialog is None
+
+
+@pytest.mark.parametrize("temporary", [False, True])
+def test_text_draft_snapshots_round_trip_with_virtualized_appdata_directory(window, alias_directory, monkeypatch, temporary):
+    alias, physical = alias_directory
+    # Windows AppData virtualization also redirects creation through a symlink;
+    # create this existing-profile directory at its physical location first.
+    (physical / "text-session").mkdir()
+    monkeypatch.setattr(ui, "user_data_dir", lambda: alias)
+    sample = window.voice_items[0]
+    if temporary:
+        window.text_voice.select("__temporary__")
+        window.text_voice.audio.setText(sample["audio"])
+        window.text_voice.transcript.setPlainText(sample["transcript"])
+    expected_id = window.text_voice.current()["id"]
+    window.text_edit.setPlainText("重启后保留这份讲稿与同一个声音。")
+    assert window._save_text_state(strict=True)
+    saved = json.loads((physical / "text-session" / "draft.json").read_text(encoding="utf-8"))
+    assert not Path(saved["voice"]["audio"]).is_absolute()
+    if temporary:
+        assert saved["temporary"]["audio"] == saved["voice"]["audio"]
+    window._text_voice_snapshot = None
+    window._restore_text_state()
+    restored = window.text_voice.current()
+    assert restored["id"] == expected_id
+    assert Path(restored["audio"]).is_file()
+    assert "重启后保留" in window.text_edit.toPlainText()
     assert not window.test_errors
