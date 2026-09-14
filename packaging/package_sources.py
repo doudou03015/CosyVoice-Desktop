@@ -1,5 +1,6 @@
 """Assemble source attachments and exact source provenance from downloaded archives."""
 import argparse
+import ast
 import hashlib
 import json
 import re
@@ -8,6 +9,12 @@ import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
+_version_tree = ast.parse((ROOT / 'desktop_app/__init__.py').read_text(encoding='utf-8'))
+APP_VERSION = next((ast.literal_eval(node.value) for node in _version_tree.body
+                    if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '__version__'
+                                                           for target in node.targets)), None)
+if not isinstance(APP_VERSION, str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', APP_VERSION):
+    raise ValueError('Cannot read a valid __version__ from desktop_app/__init__.py')
 
 
 def sha(path):
@@ -81,7 +88,7 @@ def main():
                 'qt_ffmpeg_configuration': "--prefix=/c/FFmpeg-n7.1.5/build/msvc/installed --disable-programs --disable-doc --disable-debug --enable-network --disable-lzma --enable-pic --disable-vulkan --disable-v4l2-m2m --disable-decoder=truemotion1 --disable-avdevice --disable-avfilter --enable-zlib --extra-cflags='-IC:/zlib-1.3.1/build/amd64' --extra-ldflags='-LIBPATH:C:/zlib-1.3.1/build/amd64' --toolchain=msvc --enable-shared --disable-static",
                 'notes': ['Qt/PySide libraries remain dynamically replaceable in the onedir package.', 'soxr 1.1.0 source archive includes libsoxr 0.1.3-14-ga66f3ee source.', 'Runtime and GUI soundfile bundle libsndfile 1.2.0 and 1.2.2 respectively.', 'The external video FFmpeg component is downloaded directly from its upstream publisher, not rehosted in this release.', 'mpg123 source and patch identity verified against DLL embedded build paths: runtime SHA512 patchset prefix 3db975bc05 (1.29.3), GUI 66150af195 (1.32.9).']}
     (ROOT / 'packaging/source-manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    output = args.stage / 'release/third-party-sources-0.1.0-alpha.1.zip'
+    output = args.stage / f'release/third-party-sources-{APP_VERSION}.zip'
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_STORED, allowZip64=True) as archive:
         for record in records:
             archive.write(source / record['file'], record['file'])

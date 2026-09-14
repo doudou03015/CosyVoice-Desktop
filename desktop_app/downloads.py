@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 import zipfile
 
+from . import __version__
 from .paths import outside_sync, session_dir
 
 
@@ -54,7 +55,7 @@ def download_file(url, destination, sha256, size=None, progress=None, cancel=Non
             return destination
         partial.unlink()
         offset = 0
-    request = Request(url, headers={'User-Agent': 'CosyVoice-Desktop/0.1.0-alpha.1', **({'Range': f'bytes={offset}-'} if offset else {})})
+    request = Request(url, headers={'User-Agent': f'CosyVoice-Desktop/{__version__}', **({'Range': f'bytes={offset}-'} if offset else {})})
     with urlopen(request, timeout=45) as response:
         if offset and response.status == 206:
             content_range = response.headers.get('Content-Range', '')

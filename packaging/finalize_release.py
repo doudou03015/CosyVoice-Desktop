@@ -1,12 +1,20 @@
 """Gather approved final artifacts and checksum every independent release asset."""
 import argparse
+import ast
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
+_version_tree = ast.parse((ROOT / 'desktop_app/__init__.py').read_text(encoding='utf-8'))
+APP_VERSION = next((ast.literal_eval(node.value) for node in _version_tree.body
+                    if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '__version__'
+                                                           for target in node.targets)), None)
+if not isinstance(APP_VERSION, str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', APP_VERSION):
+    raise ValueError('Cannot read a valid __version__ from desktop_app/__init__.py')
 
 
 def sha(path):
@@ -21,11 +29,11 @@ def finalize(stage, desktop):
     output.mkdir(exist_ok=True)
     for name in ['component-manifest.json', 'source-manifest.json', 'wetext-manifest.json']:
         shutil.copy2(ROOT / 'packaging' / name, output / name)
-    for name in ['CosyVoice-Desktop-0.1.0-alpha.1-windows-x64-setup.exe', 'CosyVoice-Desktop-0.1.0-alpha.1-windows-x64-portable.zip']:
+    for name in [f'CosyVoice-Desktop-{APP_VERSION}-windows-x64-setup.exe', f'CosyVoice-Desktop-{APP_VERSION}-windows-x64-portable.zip']:
         source = desktop / name
         if not source.is_file(): raise FileNotFoundError(source)
         shutil.copy2(source, output / name)
-    with zipfile.ZipFile(output / 'third-party-licenses-0.1.0-alpha.1.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(output / f'third-party-licenses-{APP_VERSION}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
         for folder in [ROOT / 'packaging/licenses', ROOT / 'voice_library/licenses']:
             for file in sorted(folder.rglob('*')):
                 if file.is_file(): archive.write(file, file.relative_to(ROOT).as_posix())
