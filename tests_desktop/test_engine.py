@@ -54,16 +54,16 @@ class EngineTests(unittest.TestCase):
         tempfile.tempdir = self.previous_tempdir
 
     def test_complete_all_chunks_and_reuse_identical_segments(self):
-        result = self.engine.synthesize("第一段|第二段", self.audio, "原文", self.root / "完整.wav")
+        result = self.engine.synthesize("First batch.|Second batch.", self.audio, "原文", self.root / "完整.wav")
         self.assertEqual(result["segments"], 2)
         self.assertEqual(sf.info(result["path"]).frames, 4800)
         self.assertEqual(len(self.calls), 2)
         self.assertEqual(self.calls[0][1], PROMPT_PREFIX + "原文")
-        self.engine.synthesize("第一段|第二段", self.audio, "原文", self.root / "复用.wav")
+        self.engine.synthesize("First batch.|Second batch.", self.audio, "原文", self.root / "复用.wav")
         self.assertEqual(len(self.calls), 2)
         cached = next((self.root / "session" / "segments").glob("*/*.wav"))
         cached.write_bytes(b"interrupted write")
-        self.engine.synthesize("第一段|第二段", self.audio, "原文", self.root / "修复.wav")
+        self.engine.synthesize("First batch.|Second batch.", self.audio, "原文", self.root / "修复.wav")
         self.assertEqual(len(self.calls), 3)
 
     def test_cancel_preserves_output_and_retry_uses_completed_segment(self):
@@ -75,11 +75,11 @@ class EngineTests(unittest.TestCase):
                 cancel.set()
         self.engine.progress = progress
         with self.assertRaises(CancelledError):
-            self.engine.synthesize("第一段|第二段", self.audio, "原文", target, cancel=cancel)
+            self.engine.synthesize("First batch.|Second batch.", self.audio, "原文", target, cancel=cancel)
         self.assertEqual(target.read_bytes(), b"existing-complete-result")
         self.assertEqual(len(self.calls), 1)
         self.engine.progress = self.events.append
-        result = self.engine.synthesize("第一段|第二段", self.audio, "原文", target)
+        result = self.engine.synthesize("First batch.|Second batch.", self.audio, "原文", target)
         self.assertEqual(len(self.calls), 2)
         self.assertEqual(sf.info(result["path"]).frames, 4800)
 
@@ -101,6 +101,70 @@ class EngineTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.engine.synthesize("文字", self.audio, "原文", output)
         self.assertFalse(output.exists())
+
+    def test_boundary_join_preserves_speech_raw_cache_and_exact_duration(self):
+        from tests_desktop.test_audio_join import tone as speech, quiet
+        batches = [np.concatenate((quiet(.25), speech(), quiet(1.4), speech(), quiet(.8))),
+                   np.concatenate((quiet(.7), speech(frequency=337), quiet(.8))),
+                   np.concatenate((quiet(.7), speech(frequency=441), quiet(.25)))]
+        def infer(text, *args, **kwargs):
+            self.calls.append(text)
+            yield {"tts_speech": Tensor(batches[int(text)])}
+        self.engine.model.inference_zero_shot = infer
+        result = self.engine.synthesize("0|1|2", self.audio, "原文", self.root / "连接.wav")
+        output, sr = sf.read(result["path"], dtype="float32")
+        self.assertEqual(len(self.calls), 3)
+        self.assertEqual(len(result["joins"]), 2)
+        self.assertTrue(all(item["changed"] for item in result["joins"]))
+        self.assertEqual(result["duration"], len(output) / sr)
+        self.assertEqual(len(output), sum(map(len, batches)) - sum(
+            j["left_trim_samples"] + j["right_trim_samples"] for j in result["joins"]))
+        # The original beginning, internal sentence pause and final ending survive.
+        np.testing.assert_allclose(output[:round(3.25*sr)], batches[0][:round(3.25*sr)], atol=1/32768)
+        np.testing.assert_allclose(output[-round(1.25*sr):], batches[-1][-round(1.25*sr):], atol=1/32768)
+        cached = sorted((self.root / "session" / "segments").glob("*/*.wav"))
+        originals = [p.read_bytes() for p in cached]
+        self.assertEqual([sf.info(p).frames for p in cached], list(map(len, batches)))
+        retry = self.engine.synthesize("0|1|2", self.audio, "原文", self.root / "复用连接.wav")
+        self.assertEqual(len(self.calls), 3)
+        self.assertEqual([p.read_bytes() for p in cached], originals)
+        self.assertEqual(retry["duration"], result["duration"])
+        np.testing.assert_allclose(sf.read(retry["path"], dtype="float32")[0], output, atol=1/32768)
+
+    def test_single_batch_keeps_all_original_pauses(self):
+        from tests_desktop.test_audio_join import tone as speech, quiet
+        waveform = np.concatenate((quiet(.9), speech(), quiet(1.5), speech(), quiet(.8)))
+        self.engine.model.inference_zero_shot = lambda *args, **kwargs: iter([{"tts_speech": Tensor(waveform)}])
+        result = self.engine.synthesize("单批文字", self.audio, "原文", self.root / "单批.wav")
+        self.assertEqual(result["joins"], [])
+        self.assertEqual(sf.info(result["path"]).frames, len(waveform))
+        np.testing.assert_allclose(sf.read(result["path"], dtype="float32")[0], waveform, atol=1/32768)
+
+    def test_cancel_after_join_never_publishes_partial_audio(self):
+        target = self.root / "keep.wav"
+        target.write_bytes(b"previous complete page")
+        cancel = threading.Event()
+        self.engine.progress = lambda event: cancel.set() if event.get("completed") == 2 else None
+        with self.assertRaises(CancelledError):
+            self.engine.synthesize("One.|Two.|Three.", self.audio, "原文", target, cancel=cancel)
+        self.assertEqual(target.read_bytes(), b"previous complete page")
+        self.assertEqual(len(self.calls), 2)
+        self.assertFalse(list((self.root / "session").glob("speech-*.wav")))
+        self.engine.progress = self.events.append
+        result = self.engine.synthesize("One.|Two.|Three.", self.audio, "原文", target)
+        self.assertEqual(len(self.calls), 3)
+        self.assertEqual(sf.info(result["path"]).frames, 7200)
+
+    def test_worker_reload_time_does_not_invalidate_completed_raw_batches(self):
+        self.engine.runtime_info = {"torch": "2.3.1+cu121", "load_seconds": 24.77}
+        result = self.engine.synthesize("One.|Two.", self.audio, "原文", self.root / "first.wav")
+        self.engine.runtime_info["load_seconds"] = 31.5
+        retry = self.engine.synthesize("One.|Two.", self.audio, "原文", self.root / "retry.wav")
+        self.assertEqual(len(self.calls), 2)
+        self.assertEqual(Path(result["path"]).read_bytes(), Path(retry["path"]).read_bytes())
+        self.engine.runtime_info["torch"] = "2.7.1+cu128"
+        self.engine.synthesize("One.|Two.", self.audio, "原文", self.root / "new-runtime.wav")
+        self.assertEqual(len(self.calls), 4)
 
 
 if __name__ == "__main__":

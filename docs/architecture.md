@@ -30,6 +30,19 @@ Result includes path, duration, sample_rate (24000), segments, and optional devi
 self-test details. Error includes code and message. Cancelled includes message.
 Request IDs are echoed exactly. Only one synthesis is active; main thread serializes jobs.
 
+`segments` counts synthesis batches, not slides. `text_segments.prepare_segments`
+reflows ordinary normalized Chinese into sentence-first batches (80-character soft
+target, 120-character maximum). English and model-marked input retain upstream
+segmentation. Text content is preserved when concatenating the resulting batches.
+`audio_join.plan_boundary_join` examines only continuous quiet edges between complete
+batches. Confirmed gaps above 450 ms shorten to 300 ms with at least 80 ms retained
+on each side; weak or ambiguous speech is unchanged. Interior pauses and the complete
+utterance's outer edges are preserved. Raw PCM16 batch caches are immutable during
+joining; only a pending batch and its neighbor are needed. Result `joins` contains
+sample-based boundary decisions. Final duration uses the actual samples written.
+Completed project WAV files keep their existing reuse policy until explicitly
+regenerated; an upgrade does not discard them or silently regenerate narration.
+
 ## Backend and UI integration
 
 Document, project, voice and media modules are plain Python and must not import Qt/torch.

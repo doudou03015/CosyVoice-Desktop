@@ -121,6 +121,8 @@ class Engine:
         self.report("validating", "正在检查文字和参考录音……")
         import numpy as np
         import soundfile as sf
+        from .audio_join import plan_boundary_join
+        from .text_segments import prepare_segments
         text, reference, transcript = self.validate(text, ref_audio, ref_text, speed, seed)
         cancel = cancel or threading.Event()
         with self._lock:
@@ -132,14 +134,15 @@ class Engine:
             if cancel.is_set():
                 raise CancelledError("生成已取消。")
             normalized = self.model.frontend.text_normalize(text, split=True, text_frontend=True)
-            segments = [s for s in normalized if str(s).strip()]
+            segments = prepare_segments(normalized)
             if not segments:
                 raise ValueError("文字中没有可朗读的内容。")
             if "<|endofprompt|>" not in transcript:
                 transcript = PROMPT_PREFIX + transcript
             fingerprint = hashlib.sha256(json.dumps({"text": segments, "ref": hashlib.sha256(reference.read_bytes()).hexdigest(),
                 "transcript": transcript, "speed": speed, "seed": seed, "model": str(self.model_dir),
-                "runtime": self.runtime_info}, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+                "runtime": {key: value for key, value in self.runtime_info.items() if key != "load_seconds"}},
+                ensure_ascii=False, sort_keys=True).encode()).hexdigest()
             cache = self.session / "segments" / fingerprint
             cache.mkdir(parents=True, exist_ok=True)
             stage = self.session / ("speech-" + uuid4().hex + ".wav")
@@ -149,13 +152,15 @@ class Engine:
             if destination == reference:
                 raise ValueError("输出文件不能覆盖参考录音。")
             total_frames = 0
+            joins = []
+            pending = None
             started = time.perf_counter()
             try:
                 with sf.SoundFile(str(stage), "w", samplerate=self.model.sample_rate, channels=1, subtype="PCM_16") as writer:
                     for index, segment in enumerate(segments):
                         if cancel.is_set():
                             raise CancelledError("生成已取消，完整页面结果已保留。")
-                        self.report("synthesizing", f"正在生成第 {index + 1}/{len(segments)} 段……", completed=index, total=len(segments))
+                        self.report("synthesizing", f"正在分批合成 {index + 1}/{len(segments)}……", completed=index, total=len(segments))
                         cached = cache / f"{index:05d}.wav"
                         if cached.is_file():
                             try:
@@ -185,19 +190,37 @@ class Engine:
                                 if not np.any(np.abs(waveform) > 1e-7):
                                     raise RuntimeError("模型生成了静音，请更换文字或参考录音后重试。")
                                 sf.write(str(cached), waveform, self.model.sample_rate, subtype="PCM_16")
+                                # Use the same PCM samples for first generation
+                                # and retries, including boundary classification.
+                                waveform, _ = sf.read(str(cached), dtype="float32")
+                                if not np.any(np.abs(waveform) > 1e-7):
+                                    cached.unlink(missing_ok=True)
+                                    raise RuntimeError("模型生成的音频音量过低，请更换文字或参考录音后重试。")
                             finally:
                                 chunks.clear()
                                 torch.cuda.empty_cache()
-                        writer.write(waveform)
-                        total_frames += len(waveform)
-                        self.report("synthesizing", f"第 {index + 1}/{len(segments)} 段已完成。", completed=index + 1, total=len(segments))
+                        # Retain only the previous batch until its next edge is
+                        # known. Raw caches remain unchanged for cancel/retry.
+                        if pending is not None:
+                            join = plan_boundary_join(pending, waveform, self.model.sample_rate)
+                            joins.append({"after_batch": index, **join.to_dict()})
+                            kept = pending[:len(pending) - join.left_trim_samples]
+                            writer.write(kept)
+                            total_frames += len(kept)
+                            waveform = waveform[join.right_trim_samples:]
+                        pending = waveform
+                        self.report("synthesizing", f"第 {index + 1}/{len(segments)} 批已完成。", completed=index + 1, total=len(segments))
+                    if pending is not None:
+                        writer.write(pending)
+                        total_frames += len(pending)
                 if cancel.is_set():
                     raise CancelledError("生成已取消，完整页面结果已保留。")
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(stage, destination)
                 return {"path": str(destination), "duration": total_frames / self.model.sample_rate,
                         "sample_rate": self.model.sample_rate, "segments": len(segments),
-                        "elapsed": round(time.perf_counter() - started, 2), "runtime": self.runtime_info}
+                        "elapsed": round(time.perf_counter() - started, 2), "runtime": self.runtime_info,
+                        "joins": joins}
             finally:
                 stage.unlink(missing_ok=True)
                 torch.cuda.empty_cache()

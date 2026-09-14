@@ -410,7 +410,7 @@ class MainWindow(QMainWindow):
         left_layout.setContentsMargins(0, 0, 8, 0)
         left_layout.addLayout(row(QLabel("待配音文字"), 1, button("导入 TXT / DOCX", self.import_text)))
         self.text_edit = QPlainTextEdit()
-        self.text_edit.setPlaceholderText("在这里输入或粘贴内容……\n\n较长的讲稿会自动分段生成，完成后合并成一条音频。")
+        self.text_edit.setPlaceholderText("在这里输入或粘贴内容……\n\n较长的讲稿会优先按完整句子分批合成，完成后合并成一条音频。")
         self.text_edit.setObjectName("narrationText")
         left_layout.addWidget(self.text_edit, 1)
         self.text_count = note("0 字")
@@ -895,7 +895,7 @@ class MainWindow(QMainWindow):
                 if job.get("kind") == "text":
                     self._text_output = event["path"]
                     self.text_play.setEnabled(True)
-                    self.text_result.setText(f"生成完成 · {float(event.get('duration', 0)):.1f} 秒 · {event.get('segments', 1)} 段\n{Path(event['path']).name}")
+                    self.text_result.setText(f"生成完成 · {float(event.get('duration', 0)):.1f} 秒 · 分 {event.get('segments', 1)} 批合成\n{Path(event['path']).name}")
                     self.status_label.setText("配音已完成，可试听或导出。")
                     self._save_text_state()
                 elif job.get("kind") == "page":
