@@ -10,7 +10,7 @@ import re
 import shutil
 
 from .documents import read_pptx, sha256
-from .paths import atomic_json, read_json
+from .paths import atomic_json, read_json, relative_to_directory
 
 SCHEMA_VERSION = 1
 
@@ -21,8 +21,10 @@ def resolve_resource(directory, relative):
     if value.is_absolute():
         raise ValueError("工程资源必须使用相对路径。")
     result = (root / value).resolve()
-    if result != root and root not in result.parents:
-        raise ValueError("工程资源路径越界。")
+    try:
+        relative_to_directory(result, root)
+    except ValueError as error:
+        raise ValueError("工程资源路径越界。") from error
     return str(result)
 
 
@@ -38,7 +40,7 @@ def _snapshot(source, directory, relative):
         shutil.copyfile(candidate, target)
     if not target.is_file():
         raise FileNotFoundError(f"工程资源不存在：{target.name}")
-    return target.relative_to(root).as_posix()
+    return relative_to_directory(target, root).as_posix()
 
 
 def create_project(pptx, directory, voice=None, speed=1.0):

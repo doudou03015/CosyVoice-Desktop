@@ -52,6 +52,11 @@ def run(arguments):
         dialog.recorder.started.connect(started)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             recorded = dialog.take_result()
+            # Capture and library persistence are separate validation steps.
+            # Keep evidence even if add() saves a WAV but a later lookup fails.
+            capture_stats = validate_reference(recorded["audio"], recorded["transcript"])
+            report.update(recording_validated=True, recording=capture_stats,
+                          recording_name=recorded["name"], recording_transcript=recorded["transcript"])
             voice = VoiceLibrary().add(recorded["name"], recorded["audio"], recorded["transcript"], source="软件内录制")
             stats = validate_reference(voice["audio"], voice["transcript"])
             report.update(complete=True, voice=voice, audio=stats)
