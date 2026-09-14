@@ -1,4 +1,4 @@
-"""Native child-tree cancellation regression for Windows venv launchers."""
+"""Inference environment isolation and owned child-tree cancellation."""
 import ctypes
 import json
 import os
@@ -16,6 +16,84 @@ from PySide6.QtWidgets import QApplication
 
 from desktop_app.qt_worker import InferenceProcess
 from desktop_app import qt_worker
+
+
+def test_submit_propagates_gui_data_location_in_worker_environment(tmp_path, monkeypatch):
+    app = QApplication.instance() or QApplication([])
+    model = tmp_path / "model"
+    model.mkdir()
+    (model / "cosyvoice3.yaml").write_text("", encoding="utf-8")
+    shared_data = tmp_path / "共享 用户资料"
+    shared_data.mkdir()
+    session = tmp_path / "worker session"
+    session.mkdir()
+    stale_profile = str(tmp_path / "other AppData profile")
+    monkeypatch.setenv("COSYVOICE_DESKTOP_DATA", stale_profile)
+    monkeypatch.setattr(qt_worker, "user_data_dir", lambda: shared_data)
+    monkeypatch.setattr(qt_worker, "session_dir", lambda: session)
+    manager = InferenceProcess()
+    manager.configure({"runtime_python": sys.executable, "model_dir": str(model)})
+    launched = []
+    busy = []
+    manager.busy_changed.connect(busy.append)
+
+    def capture_start(python, arguments):
+        launched.append((python, arguments, manager.process.processEnvironment(), manager.process.workingDirectory()))
+
+    monkeypatch.setattr(manager.process, "start", capture_start)
+    try:
+        request_id = manager.submit("self_test")
+        assert len(launched) == 1
+        python, arguments, environment, directory = launched[0]
+        assert python == sys.executable
+        assert environment.value("COSYVOICE_DESKTOP_DATA") == str(shared_data)
+        assert environment.value("TEMP") == str(session)
+        assert directory == str(session)
+        assert arguments[-4:] == ["--model-dir", str(model), "--session-dir", str(session)]
+        assert manager.active["id"] == request_id
+        assert busy == [True]
+        # Only the child's environment is changed; launching it does not move
+        # the GUI's profile or modify the caller's ambient configuration.
+        assert os.environ["COSYVOICE_DESKTOP_DATA"] == stale_profile
+    finally:
+        manager.stop()
+        manager.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def test_profile_resolution_failure_leaves_request_idle_and_retryable(tmp_path, monkeypatch):
+    app = QApplication.instance() or QApplication([])
+    model = tmp_path / "model"
+    model.mkdir()
+    (model / "cosyvoice3.yaml").write_text("", encoding="utf-8")
+    manager = InferenceProcess()
+    manager.configure({"runtime_python": sys.executable, "model_dir": str(model)})
+    launched = []
+    busy = []
+    manager.busy_changed.connect(busy.append)
+    monkeypatch.setattr(manager.process, "start", lambda *args: launched.append(args))
+
+    def invalid_profile():
+        raise ValueError("用户数据目录不存在")
+
+    monkeypatch.setattr(qt_worker, "user_data_dir", invalid_profile)
+    try:
+        with pytest.raises(ValueError, match="用户数据目录不存在"):
+            manager.submit("self_test")
+        assert not manager.busy
+        assert manager.active is None
+        assert manager._pending is None
+        assert not busy
+        assert not launched
+        monkeypatch.setattr(qt_worker, "user_data_dir", lambda: tmp_path)
+        monkeypatch.setattr(qt_worker, "session_dir", lambda: tmp_path)
+        manager.submit("self_test")
+        assert len(launched) == 1
+        assert busy == [True]
+    finally:
+        manager.stop()
+        manager.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 @pytest.mark.parametrize("reported_id", ["", "active-request"])
@@ -61,7 +139,7 @@ def test_external_runtime_imports_its_own_extensions_before_frozen_sources(tmp_p
         "    request = json.loads(line)\n"
         "    if request['command'] == 'shutdown': break\n"
         "    result = dict(id=request['id'],event='result',cwd=os.getcwd(),"
-        "extension=_ctypes.__file__,socket=socket.__file__,"
+        "extension=_ctypes.__file__,socket=socket.__file__,data_dir=os.environ.get('COSYVOICE_DESKTOP_DATA'),"
         "environment={key:value for key,value in os.environ.items() if key.startswith(('_PYI_', 'PYINSTALLER_')) or key in ('PYTHONPATH','PYTHONHOME','_MEIPASS2')})\n"
         "    print(json.dumps(result),flush=True)\n", encoding="utf-8")
     model = tmp_path / "model"
@@ -71,6 +149,9 @@ def test_external_runtime_imports_its_own_extensions_before_frozen_sources(tmp_p
     session.mkdir()
     monkeypatch.setattr(qt_worker, "app_root", lambda: source)
     monkeypatch.setattr(qt_worker, "session_dir", lambda: session)
+    shared_data = tmp_path / "共享 user data"
+    shared_data.mkdir()
+    monkeypatch.setattr(qt_worker, "user_data_dir", lambda: shared_data)
     for key in ("PYTHONPATH", "PYTHONHOME", "_PYI_APPLICATION_HOME_DIR", "PYINSTALLER_RESET_ENVIRONMENT", "_MEIPASS2"):
         monkeypatch.setenv(key, str(source))
     manager = InferenceProcess()
@@ -91,6 +172,7 @@ def test_external_runtime_imports_its_own_extensions_before_frozen_sources(tmp_p
         assert source not in Path(events[-1]["extension"]).parents
         assert source not in Path(events[-1]["socket"]).parents
         assert events[-1]["environment"] == {}
+        assert events[-1]["data_dir"] == str(shared_data)
     finally:
         manager.stop()
         manager.deleteLater()

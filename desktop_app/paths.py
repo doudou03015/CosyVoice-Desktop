@@ -11,6 +11,7 @@ import tempfile
 from uuid import uuid4
 
 _SESSION: Path | None = None
+_DATA_LOCATION_CACHE: dict[tuple[str, str], tuple[Path, bool]] = {}
 
 
 def outside_sync(path: str | Path) -> Path:
@@ -51,12 +52,74 @@ def app_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def _clear_data_location_cache() -> None:
+    """Reset startup location decisions for isolated tests; not a live UI switch."""
+    _DATA_LOCATION_CACHE.clear()
+
+
+def _usable_data_directory(directory: Path, create: bool) -> Path:
+    try:
+        if create:
+            directory.mkdir(parents=True, exist_ok=True)
+        if not directory.is_dir():
+            raise ValueError(f"用户数据目录不存在或不是文件夹：{directory}。请恢复该目录或修正 app-data-location.json。")
+        if not os.access(directory, os.R_OK | os.W_OK):
+            raise PermissionError("目录没有读写权限")
+        # Opening the iterator checks directory access without creating probe
+        # files in a user's profile or enumerating its contents.
+        with os.scandir(directory):
+            pass
+    except OSError as error:
+        raise ValueError(f"无法访问用户数据目录：{directory}。请检查磁盘连接和目录读写权限。") from error
+    return directory
+
+
+def _locator_directory(installation: Path) -> Path | None:
+    locator = installation / "app-data-location.json"
+    try:
+        locator.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        raise ValueError(f"无法读取用户数据位置配置：{locator}。请检查文件权限。") from error
+    try:
+        if not locator.is_file():
+            raise ValueError("配置必须是可读取的 JSON 文件")
+        value = json.loads(locator.read_text(encoding="utf-8-sig"))
+        if not isinstance(value, dict) or type(value.get("schema_version")) is not int or value["schema_version"] != 1:
+            raise ValueError("schema_version 必须为 1")
+        base = value.get("data_dir")
+        if not isinstance(base, str) or not base.strip() or not Path(base.strip()).is_absolute():
+            raise ValueError("data_dir 必须是非空的绝对文件夹路径")
+        return outside_sync(base.strip())
+    except (OSError, ValueError) as error:
+        raise ValueError(f"用户数据位置配置无效：{locator}。{error}。未切换到其他资料库。") from error
+
+
 def user_data_dir() -> Path:
-    base = os.environ.get("COSYVOICE_DESKTOP_DATA")
-    if not base:
-        base = str(Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".local" / "share"))) / "CosyVoice-Desktop")
-    result = outside_sync(base)
-    result.mkdir(parents=True, exist_ok=True)
+    override = os.environ.get("COSYVOICE_DESKTOP_DATA", "").strip()
+    if override:
+        # Explicit overrides remain independently selectable for development
+        # and isolated tests. A running application's environment is unchanged.
+        key = ("environment", override)
+        chosen = _DATA_LOCATION_CACHE.get(key)
+        if chosen is None:
+            chosen = (outside_sync(override), True)
+    else:
+        installation = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else app_root()
+        key = ("installation", str(installation))
+        chosen = _DATA_LOCATION_CACHE.get(key)
+        if chosen is None:
+            directory = _locator_directory(installation)
+            if directory is None:
+                base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / ".local" / "share"))) / "CosyVoice-Desktop"
+                chosen = (outside_sync(base), True)
+            else:
+                # A locator pins an existing profile. A missing drive/profile
+                # must never create an apparently empty replacement library.
+                chosen = (directory, False)
+    result = _usable_data_directory(*chosen)
+    _DATA_LOCATION_CACHE[key] = chosen
     return result
 
 

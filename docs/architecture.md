@@ -12,6 +12,18 @@ Settings keys: model_dir, runtime_python, runtime_id (cu121 or cu128), gpu_uuid,
 ffmpeg_path, component_dir, manifest_path, tail_silence (default 0.5).
 Development overrides: COSYVOICE_DESKTOP_ROOT, COSYVOICE_DESKTOP_DATA.
 
+User data selection: a nonempty COSYVOICE_DESKTOP_DATA override takes priority;
+otherwise read app-data-location.json next to the frozen EXE (not _internal), or
+the source app_root. The locator has schema_version=1 and an absolute data_dir
+pointing to an existing accessible directory. Missing/invalid pinned profiles
+must fail visibly rather than create or fall back to an empty profile. Without
+a locator, the legacy LOCALAPPDATA default remains. A resolved startup location
+is cached, so modifying the locator cannot switch profiles halfway through a
+session. The inference process receives the GUI's resolved directory explicitly.
+This machine-local locator is excluded from Git and distribution; installers
+retain it during upgrade/uninstall. Migration copies and verifies user files
+before switching and preserves the original profile as a backup.
+
 ## Worker wire protocol
 
 Start: `python -B -u -m desktop_app.worker --model-dir PATH --session-dir PATH`.

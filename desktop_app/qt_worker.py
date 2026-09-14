@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, Signal
 
-from .paths import app_root, session_dir
+from .paths import app_root, session_dir, user_data_dir
 
 
 class InferenceProcess(QObject):
@@ -60,6 +60,9 @@ class InferenceProcess(QObject):
             raise ValueError("请在设置中安装运行组件，或选择有效的推理 Python 程序。")
         if not model.is_dir() or not (model / "cosyvoice3.yaml").is_file():
             raise ValueError("请在设置中下载模型，或选择包含 cosyvoice3.yaml 的模型目录。")
+        # Resolve the GUI's selected profile before making the request busy.
+        # The separate runtime executable cannot discover the GUI's locator.
+        data_directory = user_data_dir()
         request = dict(values, id=uuid4().hex, command=command)
         self.active = self._pending = request
         self.busy_changed.emit(True)
@@ -70,6 +73,7 @@ class InferenceProcess(QObject):
             for key, value in {
                 "PYTHONUTF8": "1",
                 "PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1",
+                "COSYVOICE_DESKTOP_DATA": str(data_directory),
                 "TMP": str(folder), "TEMP": str(folder),
                 "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1",
                 "HF_HUB_DISABLE_TELEMETRY": "1", "GRADIO_ANALYTICS_ENABLED": "False",
