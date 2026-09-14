@@ -60,6 +60,7 @@ models/
 outputs/
 projects/
 user_data/
+local-presets/
 release-artifacts/
 .pytest_cache/
 *.log

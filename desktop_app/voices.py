@@ -50,6 +50,8 @@ class VoiceLibrary:
         self.root = outside_sync(root or user_data_dir() / "voices")
         self.root.mkdir(parents=True, exist_ok=True)
         self.manifest = self.root / "voices.json"
+        self.preferences = self.root / "preset-preferences.json"
+        self.local_presets = self.root / "local-presets"
 
     def _custom(self):
         if self.manifest.exists():
@@ -62,23 +64,68 @@ class VoiceLibrary:
     def _save(self, voices):
         atomic_json(self.manifest, {"schema_version": 1, "voices": voices})
 
-    def list(self):
+    def _hidden_ids(self):
+        if not self.preferences.is_file():
+            return set()
+        value = json.loads(self.preferences.read_text(encoding="utf-8-sig"))
+        if value.get("schema_version") != 1:
+            raise ValueError("预设显示设置版本不受支持。")
+        ids = value.get("hidden_preset_ids", [])
+        if not isinstance(ids, list) or any(not isinstance(item, str) for item in ids):
+            raise ValueError("预设显示设置格式不正确。")
+        return set(ids)
+
+    def _save_hidden(self, ids):
+        atomic_json(self.preferences, {"schema_version": 1, "hidden_preset_ids": sorted(ids)})
+
+    def presets(self, include_hidden=True):
+        """Local samples come first; stable IDs survive moving into a release."""
         result = []
-        base = app_root() / "voice_library"
-        manifest = base / "manifest.json"
-        if manifest.exists():
+        seen = set()
+        hidden = set() if include_hidden else self._hidden_ids()
+        for base in (self.local_presets, app_root() / "voice_library"):
+            base = base.resolve()
+            manifest = base / "manifest.json"
+            if not manifest.is_file():
+                continue
             source = json.loads(manifest.read_text(encoding="utf-8-sig"))
+            if source.get("schema_version") != 1:
+                raise ValueError("预设音色库版本不受支持。")
             for row in source.get("voices", []):
-                audio = (base / row["reference_audio"]).resolve()
-                if base.resolve() not in audio.parents or not audio.is_file():
+                voice_id = row["id"]
+                if not isinstance(voice_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", voice_id):
+                    raise ValueError("预设音色标识不正确。")
+                if voice_id in seen:
                     continue
+                if voice_id in hidden:
+                    continue
+                audio = (base / row["reference_audio"]).resolve()
+                if base not in audio.parents or not audio.is_file():
+                    continue
+                seen.add(voice_id)
                 demo = (base / row.get("demo_audio", "")).resolve()
-                result.append(dict(id=row["id"], name=row["name"], audio=str(audio),
+                result.append(dict(id=voice_id, name=row["name"], audio=str(audio),
                                    transcript=row["transcript"], kind="preset",
                                    source=row.get("source_page", ""), license=row.get("license", ""),
                                    attribution=row.get("attribution", ""),
                                    license_url=row.get("license_url", ""),
-                                   demo_audio=str(demo) if base.resolve() in demo.parents and demo.is_file() else ""))
+                                   distribution=row.get("distribution", "bundled"),
+                                   demo_audio=str(demo) if base in demo.parents and demo.is_file() else ""))
+        return result
+
+    def hidden_presets(self):
+        hidden = self._hidden_ids()
+        return [voice for voice in self.presets() if voice["id"] in hidden]
+
+    def restore_presets(self, voice_ids):
+        requested = set(voice_ids)
+        known = {voice["id"] for voice in self.presets()}
+        if requested - known:
+            raise ValueError("待恢复的预设音色不存在。")
+        self._save_hidden(self._hidden_ids() - requested)
+
+    def list(self):
+        result = self.presets(include_hidden=False)
         for row in self._custom():
             item = dict(row)
             audio = (self.root / row["audio"]).resolve()
@@ -94,7 +141,7 @@ class VoiceLibrary:
                 return voice
         raise KeyError("未找到所选音色，请重新选择。")
 
-    def add(self, name, audio, transcript):
+    def add(self, name, audio, transcript, *, source="用户导入"):
         import soundfile as sf
         if not name.strip():
             raise ValueError("请输入音色名称。")
@@ -110,7 +157,7 @@ class VoiceLibrary:
             temporary.unlink(missing_ok=True)
         stats = validate_reference(target, transcript)
         row = dict(id=voice_id, name=name.strip(), audio=target.name, transcript=transcript.strip(),
-                   kind="custom", source="用户导入", license="", demo_audio="", validation=stats)
+                   kind="custom", source=source, license="", demo_audio="", validation=stats)
         custom = self._custom()
         custom.append(row)
         self._save(custom)
@@ -128,10 +175,13 @@ class VoiceLibrary:
         raise ValueError("仅自建音色可以改名。")
 
     def delete(self, voice_id):
+        if any(voice["id"] == voice_id for voice in self.presets()):
+            self._save_hidden(self._hidden_ids() | {voice_id})
+            return
         rows = self._custom()
         selected = next((row for row in rows if row["id"] == voice_id), None)
         if selected is None:
-            raise ValueError("仅自建音色可以删除。")
+            raise ValueError("未找到要删除的音色。")
         path = (self.root / selected["audio"]).resolve()
         if self.root not in path.parents or not re.fullmatch(r"custom-[a-f0-9]{32}\.wav", path.name):
             raise ValueError("音色文件路径不正确。")

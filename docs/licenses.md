@@ -20,6 +20,14 @@ FFmpeg 不使用 GPL 的 libx264 构建；H.264 编码采用 NVIDIA NVENC 或 Wi
 参考音频仅进行了明确记录的格式转换；文件名“试听_合成”是模型生成示例。
 临时录音、自建音色和用户工程不进入源码及安装包。
 
+2026-09-14 新选的龙婉 Longwan、龙书 Longshu、龙橙 longcheng 仅保存在本机
+用户数据目录的 `voices/local-presets`。官网演示页说明学术展示用途，并称部分
+示例来自互联网；网站仓库的通用 MIT 许可尚不足以确认这三段音频的具体再分发权限。
+因此它们的原始录音、转换录音和本机合成示例均不进入 Git 或公开安装包。
+不能套用本项目代码的 Apache-2.0 许可。取得明确覆盖实际用途和再分发的许可后，
+才可用相同稳定 ID 加入精确打包白名单，并附相应许可和署名。
+样本地址与当前验收状态见 [音色管理与录音](voice-management.md)。
+
 官方资料：[Qt LGPL obligations](https://www.qt.io/development/open-source-lgpl-obligations)、
 [FFmpeg legal](https://ffmpeg.org/legal.html)、
 [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)。
