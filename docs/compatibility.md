@@ -27,7 +27,8 @@ Windows 驱动最低检测线分别为 527.41 和 570.65；检测通过后仍须
 
 - [文档与视频验收](media-validation.md)：20 页 PowerPoint、NVENC/Media Foundation、音视频时间对齐。
 - 自动化硬件场景：`tests_desktop/test_gpu.py`，只证明分类和选择逻辑。
-- 正式版发布前仍需：4070 Ti Super、至少一款 RTX 30、一款 RTX 50、一台 8 GB 笔记本完成
+- v0.1.0 按本机验收结果发布，已验证兼容声明限于表中有实机证据的设备；版本转正不扩大显卡验证范围。
+- 扩大已验证设备名单前仍需：4070 Ti Super、至少一款 RTX 30、一款 RTX 50、一台 8 GB 笔记本完成
   安装、长文本、多页、取消重试与编码验收。RTX 50 必须实际合成，不能用导入 torch 替代。
 
 参考：[NVIDIA 计算能力表](https://developer.nvidia.com/cuda/gpus)、

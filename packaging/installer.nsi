@@ -11,7 +11,19 @@ Unicode true
 !ifndef UNINSTALL_LIST
 !error "UNINSTALL_LIST must list only files owned by this installer"
 !endif
-Name "CosyVoice 配音工作台"
+!ifndef APP_VERSION
+!error "APP_VERSION must match the desktop application version"
+!endif
+!ifndef APP_FILE_VERSION
+!error "APP_FILE_VERSION must contain the numeric Windows version"
+!endif
+Name "CosyVoice 配音工作台 ${APP_VERSION}"
+VIProductVersion "${APP_FILE_VERSION}"
+VIAddVersionKey /LANG=1033 "ProductName" "CosyVoice 配音工作台"
+VIAddVersionKey /LANG=1033 "ProductVersion" "${APP_VERSION}"
+VIAddVersionKey /LANG=1033 "FileDescription" "CosyVoice 配音工作台安装程序"
+VIAddVersionKey /LANG=1033 "FileVersion" "${APP_VERSION}"
+VIAddVersionKey /LANG=1033 "LegalCopyright" "See LICENSE and NOTICE"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$LOCALAPPDATA\Programs\CosyVoice-Desktop"
 RequestExecutionLevel user
@@ -31,6 +43,7 @@ Section "Application"
   CreateDirectory "$SMPROGRAMS\CosyVoice 配音工作台"
   CreateShortcut "$SMPROGRAMS\CosyVoice 配音工作台\CosyVoice 配音工作台.lnk" "$INSTDIR\CosyVoice-Desktop.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\CosyVoice-Desktop" "DisplayName" "CosyVoice 配音工作台"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\CosyVoice-Desktop" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\CosyVoice-Desktop" "UninstallString" '"$INSTDIR\Uninstall.exe"'
 SectionEnd
 Section "Uninstall"

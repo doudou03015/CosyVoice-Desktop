@@ -1,12 +1,28 @@
 # PyInstaller onedir build; heavy CUDA libraries live in independently selected runtimes.
 from pathlib import Path
+import ast
 import json
 import PySide6
 import os
 import sys
 from PyInstaller.utils.hooks import collect_data_files, copy_metadata
+from PyInstaller.utils.win32.versioninfo import FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo, VarStruct, VSVersionInfo
 
 root = Path(SPECPATH).parent
+version_tree = ast.parse((root / 'desktop_app/__init__.py').read_text(encoding='utf-8'))
+app_version = next(ast.literal_eval(node.value) for node in version_tree.body if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == '__version__' for target in node.targets))
+file_version = tuple(int(part) for part in app_version.split('-')[0].split('+')[0].split('.')) + (0,)
+version_info = VSVersionInfo(
+    ffi=FixedFileInfo(filevers=file_version, prodvers=file_version, mask=0x3f, flags=0,
+                     OS=0x40004, fileType=1, subtype=0, date=(0, 0)),
+    kids=[StringFileInfo([StringTable('040904B0', [
+        StringStruct('ProductName', 'CosyVoice 配音工作台'),
+        StringStruct('FileDescription', 'CosyVoice 配音工作台'),
+        StringStruct('ProductVersion', app_version), StringStruct('FileVersion', app_version),
+        StringStruct('InternalName', 'CosyVoice-Desktop'),
+        StringStruct('OriginalFilename', 'CosyVoice-Desktop.exe'),
+        StringStruct('LegalCopyright', 'See LICENSE and NOTICE'),
+    ])]), VarFileInfo([VarStruct('Translation', [1033, 1200])])])
 qt_root = Path(PySide6.__file__).parent
 # Build dependency discovery must not inherit unrelated imaging/tool DLLs.
 windows = Path(os.environ.get('SystemRoot', r'C:\Windows'))
@@ -47,6 +63,7 @@ a.binaries = [entry for entry in a.binaries if not ('/' not in entry[0].replace(
 a.binaries += [(p.name, str(p), 'BINARY') for p in crt_files]
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='CosyVoice-Desktop',
+    version=version_info,
     icon=str(root / 'desktop_app/assets/app.ico'), debug=False,
     bootloader_ignore_signals=False, strip=False, upx=False, console=False)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='CosyVoice-Desktop')

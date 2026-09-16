@@ -4,8 +4,8 @@ Windows 本地配音与 PPT 讲解视频工具，基于 [QwenAudio/CosyVoice](ht
 派生，保留上游历史。桌面开发分支为 `desktop`，`main` 保留作上游参照。
 本项目由社区独立维护，不代表原项目官方桌面客户端。
 
-当前开发版本：**0.1.0-alpha.2**，待实机验收与发布。已发布安装器见 Releases。
-其他显卡的验证状态见
+当前正式版本：**0.1.0**。已实机验收 RTX 2070 Super；其他型号仍按实际证据标注。
+安装器见 [v0.1.0 Release](https://github.com/doudou03015/CosyVoice-Desktop/releases/tag/v0.1.0)。显卡验证状态见
 [兼容与验收表](docs/compatibility.md)，不能将环境选择测试等同于实际模型运行成功。
 
 ![普通文本配音界面](docs/screenshots/text.png)

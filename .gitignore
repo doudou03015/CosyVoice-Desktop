@@ -60,6 +60,9 @@ models/
 outputs/
 projects/
 user_data/
+user-data/
+text-session/
+recording-recovery/
 app-data-location.json
 local-presets/
 release-artifacts/

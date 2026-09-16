@@ -1,6 +1,6 @@
 # Windows 发布构建
 
-版本：0.1.0-alpha.1。GUI 使用 Python 3.12、PySide6；CUDA 运行包使用独立的 CPython 3.10.21。构建不需要运行模型。
+版本：0.1.0。GUI 使用 Python 3.12、PySide6；CUDA 运行包使用独立的 CPython 3.10.21。构建不需要运行模型。
 
 所有下载、依赖环境、构建目录和日志须在当前用户系统 Temp 的本次构建专用目录内；不要在同步盘或源码树写构建中间文件。
 
@@ -16,6 +16,8 @@
 ```
 
 产生 onedir 程序、便携 ZIP 和用户目录安装程序。安装程序不要求管理员权限；卸载仅删除安装清单中的文件，保留另外生成或放入的用户文件。用户设置、组件及项目默认位于用户数据目录。
+
+窗口、侧栏、EXE 文件属性、安装器和附件名称读取 `desktop_app/__init__.py` 中的同一软件版本号。
 
 构建脚本和 spec 将 DLL 搜索 PATH 限定为 GUI Python、PySide6 和 Windows。Qt 使用 Windows 自带的无版本后缀 ICU API；不要打包其他软件的 ICU。已排除误从 Poppler 搜到的 ICU78，并使用所选 PySide6 发行包内同一版本的 MSVC DLL，避免开发机全局环境污染发布程序。
 
@@ -44,4 +46,8 @@ FFmpeg 由应用直接下载固定日期的 BtbN LGPL 共享构建，校验清�
 
 运行 `pytest tests_desktop`。另在无 Python 的 Windows 电脑安装并测试：安装向导、下载断点续传与取消、已有模型导入、GPU 选择、引擎短句自检、生成和导出。RTX 50 系列需在对应硬件执行 CUDA 12.8 实际推理测试；当前开发机 RTX 2070 Super 不能代替该硬件验证。
 
-发布附件包括安装程序、便携包、两个 CUDA 运行包分片、组件清单和 SHA256、第三方许可，以及 Qt/PySide/libsndfile/soxr/frozendict 对应源码。许可证和源码清单见 `packaging/source-manifest.json`。没有代码签名证书时发行包保持未签名，发布说明应如实注明。
+发布附件包括安装程序、便携包、桌面源码、组件清单和 SHA256、第三方许可，以及 Qt/PySide/libsndfile/soxr/frozendict 对应源码。许可证和源码清单见 `packaging/source-manifest.json`。没有代码签名证书时发行包保持未签名，发布说明应如实注明。
+
+v0.1.0 复用 v0.1.0-alpha.1 已发布的两套 CUDA 运行组件：其组件版本、分片下载 URL、大小和 SHA-256 保持不变，软件版本与组件版本独立。安装器通过随附清单获取原分片，不要求用户先安装旧版软件。原 Release 的运行组件附件须继续保留。第三方依赖版本未变时可以复用经原 SHA-256 核验的对应源码归档，并在新 Release 明确标注。
+
+打包前核验精确音频白名单：6 段已许可参考样本和独立自检录音。龙婉、龙书、龙橙的本机演示录音及用户录音不进入 Git、源码包或公开安装包；本机 `app-data-location.json` 同样必须排除。

@@ -349,7 +349,7 @@ class MainWindow(QMainWindow):
         self.navigation.setObjectName("navigation")
         self.navigation.addItems(["01   文本配音", "02   PPT 讲解视频", "03   音色库", "04   设置"])
         side.addWidget(self.navigation, 1)
-        foot = QLabel("CosyVoice 3 · 0.5B\nWindows 桌面版  α")
+        foot = QLabel(f"CosyVoice 3 · 0.5B\nWindows 桌面版 · v{__version__}")
         foot.setObjectName("brandNote")
         side.addWidget(foot)
         outer.addWidget(sidebar)
