@@ -1,0 +1,3 @@
+# Keep pinned third-party resource bytes and upstream license text unchanged.
+/desktop_app/assets/wetext/**/*.fst -text
+/desktop_app/assets/wetext/LICENSE -text

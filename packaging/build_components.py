@@ -48,6 +48,21 @@ def tree_manifest(folder):
             for p in sorted(folder.rglob('*')) if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc']
 
 
+def bundled_wetext_files():
+    """Use reviewed, pinned ModelScope resources, never infer a HF repository."""
+    wetext = json.loads((ROOT / 'packaging/wetext-manifest.json').read_text(encoding='utf-8-sig'))
+    files = []
+    for item in wetext['files']:
+        relative = 'desktop_app/assets/wetext/' + item['p']
+        origin = (ROOT / relative).resolve()
+        origin.relative_to((ROOT / 'desktop_app/assets/wetext').resolve())
+        if origin.stat().st_size != item['s'] or digest(origin) != item['h']:
+            raise ValueError('Bundled WeText checksum mismatch: ' + item['p'])
+        files.append(dict(path='wetext/' + item['p'], size=item['s'], sha256=item['h'],
+                          bundled_path=relative))
+    return files
+
+
 def ignore(directory, names):
     return [name for name in names if name in ('__pycache__', '.git', '.temp', '_virtualenv.py', '_virtualenv.pth') or name.endswith('.pyc')]
 
@@ -152,19 +167,14 @@ def main():
     if args.model:
         original = json.loads((args.source / 'model-download-info.json').read_text(encoding='utf-8-sig'))
         folder = args.source / 'pretrained_models/Fun-CosyVoice3-0.5B'
-        items = tree_manifest(folder)
+        # A previously installed model can already contain the bundled FSTs.
+        items = [item for item in tree_manifest(folder)
+                 if not item['path'].startswith('wetext/') and item['path'] != '.complete.json']
         for item in items:
             item['url'] = f"https://huggingface.co/{original['repo_id']}/resolve/{original['revision']}/{item['path']}"
         manifest['components']['model-cosyvoice3'] = dict(id='model-cosyvoice3', version=original['revision'], source=original['repo_id'], files=items, license='Apache-2.0', **component_metadata('model-cosyvoice3'))
-        wetext = json.loads((args.source / 'wetext-download-info.json').read_text(encoding='utf-8-sig'))
-        for item in wetext['files']:
-            items.append(dict(path='wetext/' + item['p'], size=item['s'], sha256=item['h'], url=f"https://huggingface.co/{wetext['repo']}/resolve/{wetext['revision']}/{item['p']}"))
+        items.extend(bundled_wetext_files())
         changed_components['model-cosyvoice3'] = manifest['components']['model-cosyvoice3']
-        for item in wetext['files']:
-            origin = args.source / 'pretrained_models/wetext' / item['p']
-            if digest(origin) != item['h']:
-                raise ValueError('wetext checksum mismatch')
-        (ROOT / 'packaging/wetext-manifest.json').write_text(json.dumps(wetext, indent=2), encoding='utf-8')
     if manifest_path.exists():
         latest = json.loads(manifest_path.read_text(encoding='utf-8'))
         latest['components'].update(changed_components)

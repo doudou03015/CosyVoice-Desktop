@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "name": "WeText Chinese and English text-normalization FSTs",
+  "repo": "pengzhendong/wetext",
+  "provider": "ModelScope",
+  "repository_url": "https://modelscope.cn/models/pengzhendong/wetext",
+  "revision": "67928a15fac1e769e23189c53648a65dea206a39",
+  "license": "Apache-2.0",
+  "modifications": "None. The four FST files retain their original bytes.",
+  "verified_on": "2026-09-19",
+  "files": [
+    {
+      "h": "36d7affd5a4e39efca570e5b10273103e5be75615982e71a6314299ee7b8ebdd",
+      "s": 3479454,
+      "p": "zh/tn/tagger.fst"
+    },
+    {
+      "h": "81618a81f4eee9524fae0763152a09d7c70460d2d670043bfc9715668575a9a6",
+      "s": 558366,
+      "p": "zh/tn/verbalizer.fst"
+    },
+    {
+      "h": "cdbc646a6c0dea245aac43ffa88372fae36e90e7c284b52fc8b60071c1da9410",
+      "s": 5209814,
+      "p": "en/tn/tagger.fst"
+    },
+    {
+      "h": "c2b44c1c023df96a09c0ac8f5dd8625b139a69a13da5ab1b0c8ad765cda73266",
+      "s": 2121910,
+      "p": "en/tn/verbalizer.fst"
+    }
+  ],
+  "repository_license_evidence": {
+    "url": "https://modelscope.cn/api/v1/models/pengzhendong/wetext?Revision=67928a15fac1e769e23189c53648a65dea206a39",
+    "http_status": 200,
+    "response_fields": {
+      "Code": 200,
+      "Success": true,
+      "Data.Path": "pengzhendong",
+      "Data.Name": "wetext",
+      "Data.CreatedBy": "pengzhendong",
+      "Data.License": "Apache License 2.0",
+      "Data.IsAccessible": 1,
+      "Data.Visibility": 5,
+      "Data.Revision": "master"
+    },
+    "scope": "Repository-level license declaration observed on the verification date. The endpoint reports master, so this is not represented as a versioned license file."
+  },
+  "pinned_file_evidence": {
+    "url": "https://modelscope.cn/api/v1/models/pengzhendong/wetext/repo/files?Revision=67928a15fac1e769e23189c53648a65dea206a39&Recursive=True",
+    "method": "Official ModelScope HubApi.get_model_files with the pinned revision, recursive=True and use_cookies=False",
+    "verified_fields": "For each of the four files: Path, Size, Sha256 and Revision equal the file entries and pinned revision above.",
+    "CommitterName": "pengzhendong",
+    "CommitMessage": "update fst",
+    "CommittedDate": 1736257603,
+    "all_file_sizes_and_hashes_match": true
+  },
+  "license_text": {
+    "file": "LICENSE",
+    "url": "https://raw.githubusercontent.com/pengzhendong/wetext/c188fc775afecb69dc71ce79d0e4b910afacc961/LICENSE",
+    "source_revision": "c188fc775afecb69dc71ce79d0e4b910afacc961",
+    "size": 11357,
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  "related_upstream_projects": [
+    "https://github.com/pengzhendong/wetext",
+    "https://github.com/wenet-e2e/WeTextProcessing"
+  ]
+}

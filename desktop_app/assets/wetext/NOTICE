@@ -1,0 +1,18 @@
+WeText text-normalization finite-state transducers
+Upstream publisher: pengzhendong (Zhendong Peng)
+Model repository: https://modelscope.cn/models/pengzhendong/wetext
+Pinned revision: 67928a15fac1e769e23189c53648a65dea206a39
+
+These four Chinese/English TN resources are redistributed without modification
+under Apache License 2.0. The complete license accompanies this notice.
+The upstream model repository explicitly declares Apache License 2.0 in its
+official metadata. PROVENANCE.json records that declaration, the pinned remote
+file metadata, and each original SHA-256 and byte length.
+
+Related runtime and normalization-rule projects:
+https://github.com/pengzhendong/wetext
+https://github.com/wenet-e2e/WeTextProcessing
+
+CosyVoice-Desktop packages these existing resources for offline installation;
+it does not claim authorship of the FSTs or endorsement by their authors.
+The original model component identity and resource bytes are unchanged.

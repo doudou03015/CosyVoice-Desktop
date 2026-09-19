@@ -1,6 +1,6 @@
 # Windows 发布构建
 
-版本：0.1.0。GUI 使用 Python 3.12、PySide6；CUDA 运行包使用独立的 CPython 3.10.21。构建不需要运行模型。
+版本：0.1.1。GUI 使用 Python 3.12、PySide6；CUDA 运行包使用独立的 CPython 3.10.21。构建不需要运行模型。
 
 所有下载、依赖环境、构建目录和日志须在当前用户系统 Temp 的本次构建专用目录内；不要在同步盘或源码树写构建中间文件。
 
@@ -40,14 +40,26 @@
 
 模型清单固定官方仓库提交，包含主模型、BlankEN 文件及 wetext 中英文 FST。导入已有模型时逐个校验；允许旧安装的 wetext 位于模型同级目录。
 
+WeText 的四个 TN FST 来源是 ModelScope `pengzhendong/wetext`，不是同名 Hugging Face 仓库。
+v0.1.1 把经 Apache-2.0 许可及固定 SHA-256 核验的原文件放在 `desktop_app/assets/wetext`，
+组件清单通过 `bundled_path` 引用；生成清单时同样验证这些文件，不再拼接失效的下载地址。
+模型组件版本、文件路径及 SHA-256 不变，保证 v0.1.0 的完整缓存继续复用。
+
 FFmpeg 由应用直接下载固定日期的 BtbN LGPL 共享构建，校验清单 SHA256。项目不重新托管 FFmpeg 二进制。该构建提供 h264_nvenc、h264_mf 和 libmp3lame；启动时仍应实际测试编码器是否可用。
 
 ## 发布检查
 
 运行 `pytest tests_desktop`。另在无 Python 的 Windows 电脑安装并测试：安装向导、下载断点续传与取消、已有模型导入、GPU 选择、引擎短句自检、生成和导出。RTX 50 系列需在对应硬件执行 CUDA 12.8 实际推理测试；当前开发机 RTX 2070 Super 不能代替该硬件验证。
 
+下载流程必须单独验收，不能用开发机已有模型代替。运行
+`python -B packaging/verify_component_downloads.py --work "$buildTemp/fresh-model" --report "$buildTemp/fresh-model/fresh.json"`，
+从空缓存完整下载并安装模型。再以相同 work 运行 `--mode reuse` 和 `--mode cache-recovery`，
+分别检验进程重启后复用已安装组件、仅有已下载文件时恢复安装；这两种模式禁止网络请求。
+工具保留本次专用目录，失败可用 `--mode resume` 续传，报告和日志均在该目录中。
+最后使用这份新安装模型运行打包 EXE 的 `--verify-installation --report ...`，验证实际 CUDA、短句合成和视频编码。
+
 发布附件包括安装程序、便携包、桌面源码、组件清单和 SHA256、第三方许可，以及 Qt/PySide/libsndfile/soxr/frozendict 对应源码。许可证和源码清单见 `packaging/source-manifest.json`。没有代码签名证书时发行包保持未签名，发布说明应如实注明。
 
-v0.1.0 复用 v0.1.0-alpha.1 已发布的两套 CUDA 运行组件：其组件版本、分片下载 URL、大小和 SHA-256 保持不变，软件版本与组件版本独立。安装器通过随附清单获取原分片，不要求用户先安装旧版软件。原 Release 的运行组件附件须继续保留。第三方依赖版本未变时可以复用经原 SHA-256 核验的对应源码归档，并在新 Release 明确标注。
+v0.1.1 复用 v0.1.0-alpha.1 已发布的两套 CUDA 运行组件：其组件版本、分片下载 URL、大小和 SHA-256 保持不变，软件版本与组件版本独立。安装器通过随附清单获取原分片，不要求用户先安装旧版软件。原 Release 的运行组件附件须继续保留。第三方依赖版本未变时可以复用经原 SHA-256 核验的对应源码归档，并在新 Release 明确标注。
 
 打包前核验精确音频白名单：6 段已许可参考样本和独立自检录音。龙婉、龙书、龙橙的本机演示录音及用户录音不进入 Git、源码包或公开安装包；本机 `app-data-location.json` 同样必须排除。

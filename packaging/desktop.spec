@@ -5,6 +5,7 @@ import json
 import PySide6
 import os
 import sys
+import runpy
 from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 from PyInstaller.utils.win32.versioninfo import FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo, VarStruct, VSVersionInfo
 
@@ -28,10 +29,17 @@ qt_root = Path(PySide6.__file__).parent
 windows = Path(os.environ.get('SystemRoot', r'C:\Windows'))
 os.environ['PATH'] = os.pathsep.join(str(path) for path in [Path(sys.base_prefix), Path(sys.base_prefix) / 'DLLs', qt_root, windows / 'System32', windows])
 datas = []
+# Fail closed if a pinned FST changes or an unrelated file enters this bundle.
+wetext_tools = runpy.run_path(str(root / 'packaging/bundled_wetext.py'))
+wetext_files = wetext_tools['bundle_files'](root)
+wetext_root = root / 'desktop_app/assets/wetext'
+datas += [(str(file), str(file.parent.relative_to(root))) for file in wetext_files]
 for directory in ['desktop_app', 'cosyvoice', 'third_party/Matcha-TTS', 'packaging/licenses', 'docs', 'templates']:
     folder = root / directory
     if folder.exists():
         for file in folder.rglob('*'):
+            if wetext_root in file.parents:
+                continue  # Added above from the validated, exact resource list.
             if file.is_file() and '__pycache__' not in file.parts and '.git' not in file.parts and file.suffix != '.pyc':
                 datas.append((str(file), str(file.parent.relative_to(root))))
 voice_root = root / 'voice_library'

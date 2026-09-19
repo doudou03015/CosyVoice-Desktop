@@ -24,3 +24,8 @@ distinguished from original recordings. User recordings are not included.
 Third-party binary components retain their own license terms. Qt and its
 bindings are dynamically loaded; users may replace compatible libraries and
 debug their modifications. No additional restriction on that activity is imposed.
+
+Four unchanged WeText Chinese/English text-normalization FSTs are bundled under
+Apache License 2.0 from pengzhendong/wetext on ModelScope, pinned revision
+67928a15fac1e769e23189c53648a65dea206a39. Their complete LICENSE, attribution
+NOTICE and exact provenance are in desktop_app/assets/wetext.

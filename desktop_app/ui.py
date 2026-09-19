@@ -669,7 +669,11 @@ class MainWindow(QMainWindow):
             self.progress_bar.setValue(min(1000, max(0, int(float(complete) / float(total) * 1000))))
         else:
             self.progress_bar.setRange(0, 0)
-        self.append_log(message)
+        # Byte updates move the progress bar without flooding the log with the
+        # same filename. State changes (connect, retry, verify) remain visible.
+        if message != getattr(self, "_last_progress_log_message", None):
+            self.append_log(message)
+            self._last_progress_log_message = message
 
     def update_busy(self, *args):
         busy = self.worker.busy or self._background is not None or bool(self._batch)

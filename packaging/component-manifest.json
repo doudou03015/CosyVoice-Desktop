@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "app_version": "0.1.0",
+  "app_version": "0.1.1",
   "components": {
     "model-cosyvoice3": {
       "id": "model-cosyvoice3",
@@ -101,25 +101,25 @@
           "path": "wetext/zh/tn/tagger.fst",
           "size": 3479454,
           "sha256": "36d7affd5a4e39efca570e5b10273103e5be75615982e71a6314299ee7b8ebdd",
-          "url": "https://huggingface.co/pengzhendong/wetext/resolve/67928a15fac1e769e23189c53648a65dea206a39/zh/tn/tagger.fst"
+          "bundled_path": "desktop_app/assets/wetext/zh/tn/tagger.fst"
         },
         {
           "path": "wetext/zh/tn/verbalizer.fst",
           "size": 558366,
           "sha256": "81618a81f4eee9524fae0763152a09d7c70460d2d670043bfc9715668575a9a6",
-          "url": "https://huggingface.co/pengzhendong/wetext/resolve/67928a15fac1e769e23189c53648a65dea206a39/zh/tn/verbalizer.fst"
+          "bundled_path": "desktop_app/assets/wetext/zh/tn/verbalizer.fst"
         },
         {
           "path": "wetext/en/tn/tagger.fst",
           "size": 5209814,
           "sha256": "cdbc646a6c0dea245aac43ffa88372fae36e90e7c284b52fc8b60071c1da9410",
-          "url": "https://huggingface.co/pengzhendong/wetext/resolve/67928a15fac1e769e23189c53648a65dea206a39/en/tn/tagger.fst"
+          "bundled_path": "desktop_app/assets/wetext/en/tn/tagger.fst"
         },
         {
           "path": "wetext/en/tn/verbalizer.fst",
           "size": 2121910,
           "sha256": "c2b44c1c023df96a09c0ac8f5dd8625b139a69a13da5ab1b0c8ad765cda73266",
-          "url": "https://huggingface.co/pengzhendong/wetext/resolve/67928a15fac1e769e23189c53648a65dea206a39/en/tn/verbalizer.fst"
+          "bundled_path": "desktop_app/assets/wetext/en/tn/verbalizer.fst"
         }
       ],
       "license": "Apache-2.0",

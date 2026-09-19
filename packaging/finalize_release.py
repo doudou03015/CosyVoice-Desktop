@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shutil
 import zipfile
+import runpy
 
 ROOT = Path(__file__).resolve().parent.parent
 _version_tree = ast.parse((ROOT / 'desktop_app/__init__.py').read_text(encoding='utf-8'))
@@ -34,6 +35,10 @@ def finalize(stage, desktop):
         if not source.is_file(): raise FileNotFoundError(source)
         shutil.copy2(source, output / name)
     with zipfile.ZipFile(output / f'third-party-licenses-{APP_VERSION}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+        wetext_tools = runpy.run_path(str(ROOT / 'packaging/bundled_wetext.py'))
+        for file in wetext_tools['bundle_files'](ROOT):
+            if file.name in wetext_tools['NOTICE_PATHS']:
+                archive.write(file, file.relative_to(ROOT).as_posix())
         for folder in [ROOT / 'packaging/licenses', ROOT / 'voice_library/licenses']:
             for file in sorted(folder.rglob('*')):
                 if file.is_file(): archive.write(file, file.relative_to(ROOT).as_posix())
