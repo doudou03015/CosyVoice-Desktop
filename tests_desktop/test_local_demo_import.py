@@ -78,7 +78,7 @@ def test_partial_download_does_not_replace_existing_catalog(import_context):
     with pytest.raises(OSError, match="network interrupted"):
         importer.install_samples(data, stage, fetch=interrupted)
     assert manifest.read_bytes() == before
-    assert len(VoiceLibrary(data / "voices").list()) == 9
+    assert len(VoiceLibrary(data / "voices").list()) == 3
 
 
 def test_import_rejects_stage_outside_system_temp(import_context):

@@ -36,6 +36,24 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "SimpChinese"
 Section "Application"
+  ; v0.1.2 no longer ships the six legacy FLEURS/AISHELL samples. Remove
+  ; their package-owned directories when upgrading an older installation;
+  ; user voices live in the separate user-data directory and are untouched.
+  RMDir /r "$INSTDIR\_internal\voice_library\aishell3_sample_01"
+  RMDir /r "$INSTDIR\_internal\voice_library\aishell3_sample_02"
+  RMDir /r "$INSTDIR\_internal\voice_library\aishell3_sample_03"
+  RMDir /r "$INSTDIR\_internal\voice_library\aishell3_sample_04"
+  RMDir /r "$INSTDIR\_internal\voice_library\fleurs_female_01"
+  RMDir /r "$INSTDIR\_internal\voice_library\fleurs_male_01"
+  ; Older development packages could have placed data at the onedir root.
+  ; Clean those exact legacy directories as well, without touching the
+  ; remaining manifest or user data.
+  RMDir /r "$INSTDIR\voice_library\aishell3_sample_01"
+  RMDir /r "$INSTDIR\voice_library\aishell3_sample_02"
+  RMDir /r "$INSTDIR\voice_library\aishell3_sample_03"
+  RMDir /r "$INSTDIR\voice_library\aishell3_sample_04"
+  RMDir /r "$INSTDIR\voice_library\fleurs_female_01"
+  RMDir /r "$INSTDIR\voice_library\fleurs_male_01"
   SetOutPath "$INSTDIR"
   File /r "${BUILD_DIR}\*.*"
   WriteUninstaller "$INSTDIR\Uninstall.exe"

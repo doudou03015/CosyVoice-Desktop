@@ -1,7 +1,9 @@
 """Desktop wiring tests: real documents/projects/voices, simulated GPU completion."""
+import json
 import os
 from pathlib import Path
 import shutil
+import wave
 import sys
 import time
 
@@ -21,6 +23,23 @@ from desktop_app import projects
 from desktop_app.ui import MainWindow
 
 
+def seed_test_voice_library(data_root):
+    voices = data_root / "voices" / "local-presets"
+    voices.mkdir(parents=True, exist_ok=True)
+    audio = voices / "reference.wav"
+    with wave.open(str(audio), "wb") as stream:
+        stream.setnchannels(1)
+        stream.setsampwidth(2)
+        stream.setframerate(24000)
+        stream.writeframes((b"\x00\x10" * 24000))
+    rows = [dict(id=f"test-local-{index:02d}", name=f"测试音色 {index:02d}",
+                 reference_audio="reference.wav", transcript="测试参考原文",
+                 distribution="local_only") for index in range(1, 7)]
+    (voices / "manifest.json").write_text(
+        json.dumps(dict(schema_version=1, voices=rows), ensure_ascii=False), encoding="utf-8"
+    )
+
+
 @pytest.fixture(scope="module")
 def app():
     application = QApplication.instance() or QApplication([])
@@ -31,6 +50,7 @@ def app():
 @pytest.fixture
 def window(app, tmp_path, monkeypatch):
     monkeypatch.setenv("COSYVOICE_DESKTOP_DATA", str(tmp_path / "data"))
+    seed_test_voice_library(tmp_path / "data")
     monkeypatch.setattr(MainWindow, "detect_hardware", lambda self: None)
     result = MainWindow()
     result._last_gpu_probe = time.monotonic()

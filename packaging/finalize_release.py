@@ -40,6 +40,8 @@ def finalize(stage, desktop):
             if file.name in wetext_tools['NOTICE_PATHS']:
                 archive.write(file, file.relative_to(ROOT).as_posix())
         for folder in [ROOT / 'packaging/licenses', ROOT / 'voice_library/licenses']:
+            if not folder.is_dir():
+                continue
             for file in sorted(folder.rglob('*')):
                 if file.is_file(): archive.write(file, file.relative_to(ROOT).as_posix())
         for runtime in ['runtime-cu121', 'runtime-cu128']:

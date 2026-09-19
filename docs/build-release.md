@@ -1,6 +1,6 @@
 # Windows 发布构建
 
-版本：0.1.1。GUI 使用 Python 3.12、PySide6；CUDA 运行包使用独立的 CPython 3.10.21。构建不需要运行模型。
+版本：0.1.2。GUI 使用 Python 3.12、PySide6；CUDA 运行包使用独立的 CPython 3.10.21。构建不需要运行模型。
 
 所有下载、依赖环境、构建目录和日志须在当前用户系统 Temp 的本次构建专用目录内；不要在同步盘或源码树写构建中间文件。
 
@@ -8,7 +8,7 @@
 
 1. 获取源码及 `third_party/Matcha-TTS` 子模块；安装 64 位 Python 3.12。
 2. 在专用 Temp 目录建立 GUI venv，执行 `python -m pip install -r requirements-gui-locked.txt`。此清单记录本次实际使用的全部版本。
-3. 确保 `packaging/component-manifest.json` 对应已经校验的运行包；其发布 URL 必须与将上传的附件名称一致。参考音色仅包含清单列出的录音及许可。
+3. 确保 `packaging/component-manifest.json` 对应已经校验的运行包；其发布 URL 必须与将上传的附件名称一致。公开包不包含第三方参考录音；音频清单为空。
 4. 解压 NSIS 3.11 至专用 Temp 目录。用 PowerShell 执行：
 
 ```powershell
@@ -60,6 +60,8 @@ FFmpeg 由应用直接下载固定日期的 BtbN LGPL 共享构建，校验清�
 
 发布附件包括安装程序、便携包、桌面源码、组件清单和 SHA256、第三方许可，以及 Qt/PySide/libsndfile/soxr/frozendict 对应源码。许可证和源码清单见 `packaging/source-manifest.json`。没有代码签名证书时发行包保持未签名，发布说明应如实注明。
 
-v0.1.1 复用 v0.1.0-alpha.1 已发布的两套 CUDA 运行组件：其组件版本、分片下载 URL、大小和 SHA-256 保持不变，软件版本与组件版本独立。安装器通过随附清单获取原分片，不要求用户先安装旧版软件。原 Release 的运行组件附件须继续保留。第三方依赖版本未变时可以复用经原 SHA-256 核验的对应源码归档，并在新 Release 明确标注。
+v0.1.2 复用 v0.1.0-alpha.1 已发布的两套 CUDA 运行组件：其组件版本、分片下载 URL、大小和 SHA-256 保持不变，软件版本与组件版本独立。安装器通过随附清单获取原分片，不要求用户先安装旧版软件。原 Release 的运行组件附件须继续保留。第三方依赖版本未变时可以复用经原 SHA-256 核验的对应源码归档，并在新 Release 明确标注。
 
-打包前核验精确音频白名单：6 段已许可参考样本和独立自检录音。龙婉、龙书、龙橙的本机演示录音及用户录音不进入 Git、源码包或公开安装包；本机 `app-data-location.json` 同样必须排除。
+v0.1.2 已移除旧六段参考样本；升级安装器会清理旧安装目录中的对应文件，新用户不会显示或恢复它们。如果要迁移已确认的本机音色，只复制用户数据目录中的 `voices/local-presets`，不要覆盖含旧盘符的 `settings.json`。
+
+打包前核验音频清单为空；独立自检录音在运行时临时生成，不进入 Git 或公开安装包。龙婉、龙书、龙橙的本机演示录音及用户录音不进入 Git、源码包或公开安装包；本机 `app-data-location.json` 同样必须排除。

@@ -1,6 +1,5 @@
 from pathlib import Path
 import json
-import shutil
 import tempfile
 import unittest
 
@@ -8,7 +7,7 @@ import numpy as np
 import soundfile as sf
 
 from desktop_app.paths import session_dir
-from desktop_app.voices import VoiceLibrary, temporary_voice, validate_reference
+from desktop_app.voices import REMOVED_PRESET_IDS, VoiceLibrary, temporary_voice, validate_reference
 
 
 def tone(path, frames=24000, rate=24000):
@@ -26,13 +25,22 @@ class VoiceTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_presets_custom_and_temporary_are_distinct(self):
+    def test_removed_bundled_presets_are_not_available(self):
+        library = VoiceLibrary(self.root / "全新库")
+        self.assertEqual(library.list(), [])
+        self.assertEqual(library.hidden_presets(), [])
+        self.assertFalse(library.preferences.exists())
+
+    def test_stale_removed_ids_are_ignored_even_with_explicit_empty_preferences(self):
+        library = VoiceLibrary(self.root / "旧安装残留")
+        library.preferences.write_text(json.dumps({"schema_version": 1, "hidden_preset_ids": []}), encoding="utf-8")
+        self.assertTrue(REMOVED_PRESET_IDS)
+        self.assertEqual(library.list(), [])
+        self.assertEqual(library.hidden_presets(), [])
+
+    def test_custom_and_temporary_are_distinct(self):
         library = VoiceLibrary(self.root / "库")
-        presets = [v for v in library.list() if v["kind"] == "preset"]
-        self.assertEqual(len(presets), 6)
-        for voice in presets:
-            validate_reference(voice["audio"], voice["transcript"])
-            self.assertNotIn("inference_validation", voice)
+        self.assertEqual(library.presets(), [])
         temporary = temporary_voice(self.audio, "录音原文")
         self.assertEqual(temporary["kind"], "temporary")
         voice = library.add("我的声音", self.audio, "录音原文")
@@ -41,45 +49,26 @@ class VoiceTests(unittest.TestCase):
         library.delete(voice["id"])
         self.assertTrue(self.audio.exists())
         self.assertFalse(Path(voice["audio"]).exists())
-        library.delete(presets[0]["id"])
-        self.assertTrue(Path(presets[0]["audio"]).exists())
-        self.assertNotIn(presets[0]["id"], [item["id"] for item in library.list()])
-        restored_library = VoiceLibrary(library.root)
-        self.assertEqual([item["id"] for item in restored_library.hidden_presets()], [presets[0]["id"]])
-        restored_library.restore_presets([presets[0]["id"]])
-        self.assertEqual(len(restored_library.list()), 6)
-
-    def test_all_presets_can_be_hidden_without_affecting_custom_voices(self):
-        library = VoiceLibrary(self.root / "库")
-        original = library.presets()
-        for item in original:
-            library.delete(item["id"])
-        self.assertEqual(library.list(), [])
-        custom = library.add("麦克风录制", self.audio, "录音原文", source="软件内录制")
-        self.assertEqual(library.list()[0]["source"], "软件内录制")
-        library.rename(custom["id"], "我的音色")
-        self.assertEqual(len(library.hidden_presets()), len(original))
-        library.restore_presets([original[1]["id"]])
-        self.assertEqual([item["id"] for item in library.list()], [original[1]["id"], custom["id"]])
         with self.assertRaises(ValueError):
             library.restore_presets(["not-a-preset"])
 
     def test_local_presets_first_deduplicated_and_hidden_ids_survive_updates(self):
         library = VoiceLibrary(self.root / "库")
-        existing = library.presets()[0]
         library.local_presets.mkdir()
-        shutil.copyfile(self.audio, library.local_presets / "reference.wav")
-        rows = [dict(id="cosyvoice_demo_longwan_zh", name="龙婉", reference_audio="reference.wav",
-                     transcript="测试录音", distribution="local_only"),
-                dict(id=existing["id"], name="更新的预设", reference_audio="reference.wav",
-                     transcript="测试录音")]
+        shutil_audio = library.local_presets / "reference.wav"
+        shutil_audio.write_bytes(self.audio.read_bytes())
+        rows = [
+            dict(id="cosyvoice_demo_longwan_zh", name="龙婉", reference_audio="reference.wav",
+                 transcript="测试录音", distribution="local_only"),
+            dict(id="local-keep", name="本地保留", reference_audio="reference.wav",
+                 transcript="测试录音", distribution="local_only"),
+        ]
         manifest = library.local_presets / "manifest.json"
-        manifest.write_text(json.dumps(dict(schema_version=1, voices=rows)), encoding="utf-8")
-        self.assertEqual(len(library.list()), 7)
-        self.assertEqual(library.list()[0]["distribution"], "local_only")
+        manifest.write_text(json.dumps(dict(schema_version=1, voices=rows), ensure_ascii=False), encoding="utf-8")
+        self.assertEqual([item["id"] for item in library.list()], ["cosyvoice_demo_longwan_zh", "local-keep"])
         library.delete(rows[0]["id"])
         rows[0]["name"] = "更新名称"
-        manifest.write_text(json.dumps(dict(schema_version=1, voices=rows)), encoding="utf-8")
+        manifest.write_text(json.dumps(dict(schema_version=1, voices=rows), ensure_ascii=False), encoding="utf-8")
         self.assertNotIn(rows[0]["id"], [item["id"] for item in VoiceLibrary(library.root).list()])
         library.restore_presets([rows[0]["id"]])
         self.assertEqual(library.list()[0]["name"], "更新名称")

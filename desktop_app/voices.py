@@ -11,6 +11,16 @@ from .documents import sha256
 from .paths import app_root, atomic_json, outside_sync, relative_to_directory, session_dir, user_data_dir
 
 
+# These six reference samples were shipped in the first desktop builds but
+# are no longer part of the product.  Keep the IDs blocked so an in-place
+# upgrade also ignores stale files from an older _internal/voice_library.
+REMOVED_PRESET_IDS = frozenset({
+    "fleurs_male_01", "fleurs_female_01",
+    "aishell3_sample_01", "aishell3_sample_02",
+    "aishell3_sample_03", "aishell3_sample_04",
+})
+
+
 def validate_reference(audio, transcript):
     import numpy as np
     import soundfile as sf
@@ -97,7 +107,7 @@ class VoiceLibrary:
                     raise ValueError("预设音色标识不正确。")
                 if voice_id in seen:
                     continue
-                if voice_id in hidden:
+                if voice_id in REMOVED_PRESET_IDS or voice_id in hidden:
                     continue
                 audio = (base / row["reference_audio"]).resolve()
                 try:

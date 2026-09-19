@@ -16,10 +16,10 @@ distributed under Apache-2.0, unless a file carries a separate notice.
 This project is independently maintained and is not an official desktop client
 or an endorsement by Alibaba, QwenAudio, Qt, NVIDIA, Google or AISHELL.
 
-Curated reference audio has separate attribution and licenses in
-voice_library/manifest.json and voice_library/licenses. FLEURS samples are
-CC-BY-4.0; AISHELL-3 samples are Apache-2.0. Generated previews are explicitly
-distinguished from original recordings. User recordings are not included.
+The public desktop package does not bundle third-party reference recordings.
+The empty voice_library/manifest.json documents that users must import or record
+voices they are authorized to use. Generated previews and user recordings stay
+outside the source and release packages.
 
 Third-party binary components retain their own license terms. Qt and its
 bindings are dynamically loaded; users may replace compatible libraries and

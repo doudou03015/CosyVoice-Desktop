@@ -4,8 +4,8 @@ Windows 本地配音与 PPT 讲解视频工具，基于 [QwenAudio/CosyVoice](ht
 派生，保留上游历史。桌面开发分支为 `desktop`，`main` 保留作上游参照。
 本项目由社区独立维护，不代表原项目官方桌面客户端。
 
-当前正式版本：**0.1.1**。已实机验收 RTX 2070 Super；其他型号仍按实际证据标注。
-安装器见 [v0.1.1 Release](https://github.com/doudou03015/CosyVoice-Desktop/releases/tag/v0.1.1)。显卡验证状态见
+当前正式版本：**0.1.2**。已实机验收 RTX 2070 Super；其他型号仍按实际证据标注。
+安装器见 [v0.1.2 Release](https://github.com/doudou03015/CosyVoice-Desktop/releases/tag/v0.1.2)。显卡验证状态见
 [兼容与验收表](docs/compatibility.md)，不能将环境选择测试等同于实际模型运行成功。
 
 ![普通文本配音界面](docs/screenshots/text.png)
@@ -16,7 +16,7 @@ Windows 本地配音与 PPT 讲解视频工具，基于 [QwenAudio/CosyVoice](ht
 
 - 文本配音：输入或导入 TXT、DOCX，选择音色和语速，分段生成、试听，导出 WAV/MP3。
 - PPT 讲解视频：读取 PPTX 备注，预览外部讲稿的页码映射，逐页编辑、配音、试听与排除页面。
-- 音色库：6 段附来源的参考样本、自建音色，以及无需保存到库中的临时参考录音；预设和自建音色均可删除，预设可勾选恢复。
+- 音色库：自建音色与无需保存到库中的临时参考录音；用户自己的预设可删除或恢复，旧版六段 FLEURS/AISHELL-3 音色已从产品移除。
 - 直接录音：在音色库、文本配音和 PPT 配音中按稿录制，支持麦克风选择、音量显示、试听、重录和保存；无需语音识别模型。
 - 工程：保存源课件副本、编辑讲稿、实际使用的音色副本和结果；重新打开后继续处理。
 - 设置：检测显卡、选择组件与模型位置、校验已有模型、执行真实配音和编码自检。
@@ -42,6 +42,9 @@ Windows 本地配音与 PPT 讲解视频工具，基于 [QwenAudio/CosyVoice](ht
 v0.1.1 修复首次下载模型配套 WeText 文件时的 HTTP 401；这四个固定版本文件已随安装包提供。
 已完成且校验通过的下载和已安装组件直接复用，未完成文件尝试续传。不要卸载或清理系统 Temp 下载缓存；
 如果缓存已被清理，或文件校验失败，则需要补下载对应文件。设置、音色、工程及生成结果保留。
+v0.1.2 已从产品移除旧六段参考样本，防止首次启动误用旧音色；不会显示或恢复它们。
+龙婉、龙书、龙橙是本机用户音色，未随公开安装包分发。请从旧电脑复制用户数据目录中的
+`voices/local-presets`，或在音色库逐项导入录音。
 RTX 20～40 与 RTX 50 的运行组件彼此独立，共享同一份模型。组件准备成功后可离线配音。
 程序不上传讲稿、录音和工程，诊断文件只在用户点击导出时保存到本地。
 
@@ -94,6 +97,4 @@ python -B -m desktop_app
 ## 许可
 
 CosyVoice 与本项目新增源码使用 [Apache-2.0](LICENSE)，修改说明见 [NOTICE](NOTICE)。
-原始介绍保留于 [UPSTREAM-README.md](docs/UPSTREAM-README.md)。模型、Qt、FFmpeg 与音色
-分别遵守各自许可，详见 [分发说明](docs/licenses.md) 和 `voice_library/licenses/`。
-6 段样本不一定对应 6 位不同说话人；FLEURS 性别标签来自数据集元数据。
+原始介绍保留于 [UPSTREAM-README.md](docs/UPSTREAM-README.md)。模型、Qt、FFmpeg 与用户导入的音色分别遵守各自许可，详见 [分发说明](docs/licenses.md)。
