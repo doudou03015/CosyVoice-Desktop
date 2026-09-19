@@ -121,6 +121,7 @@ def _receive_file(url, partial, size, progress, cancel):
             raise ValueError('服务器返回的文件超过清单大小，已下载部分保留。')
         with partial.open('ab' if offset else 'wb') as output:
             completed = offset
+            last_progress = None
             while True:
                 check_cancel(cancel)
                 read_error = None
@@ -133,7 +134,12 @@ def _receive_file(url, partial, size, progress, cancel):
                         raise ValueError('下载文件超过清单大小，已下载部分保留。')
                     output.write(block)
                     completed += len(block)
-                    _report(progress, 'download', '正在下载', completed, total)
+                    now = time.monotonic()
+                    # TLS read1() often yields 16 KiB records. Bound UI signal
+                    # frequency while retaining cancellation on every block.
+                    if last_progress is None or completed == total or now - last_progress >= 0.1:
+                        _report(progress, 'download', '正在下载', completed, total)
+                        last_progress = now
                 if read_error is not None:
                     raise read_error
                 if not block:

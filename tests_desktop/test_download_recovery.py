@@ -5,6 +5,7 @@ import io
 from pathlib import Path
 import socket
 import threading
+from types import SimpleNamespace
 from urllib.parse import urlparse
 import zipfile
 
@@ -15,6 +16,25 @@ from desktop_app import downloads
 
 def digest(payload):
     return hashlib.sha256(payload).hexdigest()
+
+
+def test_small_network_records_do_not_flood_progress(environment, tmp_path, monkeypatch):
+    payload = b'valid TLS-sized records' * 32768
+    class Response(io.BytesIO):
+        status = 200
+        headers = {'Content-Length': str(len(payload))}
+        def read1(self, size):
+            return self.read(min(size, 1024))
+    monkeypatch.setattr(downloads, 'urlopen', lambda *a, **k: Response(payload))
+    monkeypatch.setattr(downloads, 'time', SimpleNamespace(monotonic=lambda: 10.0))
+    events = []
+    destination = tmp_path / 'weights.bin'
+    downloads.download_file('https://example.test/weights.bin', destination,
+                            digest(payload), len(payload), events.append)
+    updates = [event for event in events if event['stage'] == 'download']
+    assert len(updates) == 2  # First bytes and completion, not hundreds of records.
+    assert updates[-1]['completed'] == len(payload)
+    assert destination.read_bytes() == payload
 
 
 @pytest.fixture
