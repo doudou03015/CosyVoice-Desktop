@@ -45,7 +45,7 @@ v0.1.1 把经 Apache-2.0 许可及固定 SHA-256 核验的原文件放在 `deskt
 组件清单通过 `bundled_path` 引用；生成清单时同样验证这些文件，不再拼接失效的下载地址。
 模型组件版本、文件路径及 SHA-256 不变，保证 v0.1.0 的完整缓存继续复用。
 
-FFmpeg 由应用直接下载固定日期的 BtbN LGPL 共享构建，校验清单 SHA256。项目不重新托管 FFmpeg 二进制。该构建提供 h264_nvenc、h264_mf 和 libmp3lame；启动时仍应实际测试编码器是否可用。
+FFmpeg 由应用直接下载固定日期的 BtbN LGPL 共享构建，校验清单 SHA256。项目不重新托管 FFmpeg 二进制。该构建提供 h264_nvenc、h264_mf、libmp3lame 和 AAC；启动时仍应实际测试编码器是否可用。
 
 ## 发布检查
 

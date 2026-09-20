@@ -6,7 +6,7 @@
 
 覆盖显卡系列/架构与驱动选择、多卡及显存限制、下载续传与校验、压缩包路径校验、
 TXT/DOCX/PPTX、工程迁移和恢复、音色资源快照、损坏音频识别、取消与重试、
-WAV/MP3/MP4 编码、真实 Windows 子进程树停止、Qt 界面流程，以及跨盘工程清单恢复。
+WAV/MP3/M4A/MP4 编码、真实 Windows 子进程树停止、Qt 界面流程，以及跨盘工程清单恢复。
 
 - [真实模型合成与两套运行环境](engine-validation.md)
 - [PowerPoint、视频计时与冻结 EXE 渲染](media-validation.md)

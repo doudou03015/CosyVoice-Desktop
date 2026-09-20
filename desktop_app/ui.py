@@ -188,7 +188,7 @@ class VoiceSelector(QGroupBox):
             key = audio, transcript, stamp
             if key != self._temporary_key:
                 try:
-                    self._temporary_voice = voices.temporary_voice(audio, transcript)
+                    self._temporary_voice = voices.temporary_voice(audio, transcript, ffmpeg=self.owner.ffmpeg())
                 except (ValueError, OSError):
                     if not required:
                         return None
@@ -214,7 +214,7 @@ class VoiceSelector(QGroupBox):
         self.owner.record_temporary_voice(self)
 
     def choose_audio(self):
-        filename, _ = QFileDialog.getOpenFileName(self, "选择参考录音", "", "音频 (*.wav *.flac *.mp3 *.ogg);;所有文件 (*)")
+        filename, _ = QFileDialog.getOpenFileName(self, "选择参考录音", "", "音频 (*.wav *.flac *.mp3 *.ogg *.m4a);;所有文件 (*)")
         if filename:
             self.audio.setText(filename)
 
@@ -447,10 +447,11 @@ class MainWindow(QMainWindow):
         self.text_play = button("试听", lambda: self.play(self._text_output))
         self.text_wav = button("导出 WAV", lambda: self.export_text("wav"))
         self.text_mp3 = button("导出 MP3", lambda: self.export_text("mp3"))
-        for item in (self.text_play, self.text_wav, self.text_mp3):
+        self.text_m4a = button("导出 M4A", lambda: self.export_text("m4a"))
+        for item in (self.text_play, self.text_wav, self.text_mp3, self.text_m4a):
             item.setEnabled(False)
         result_layout.addLayout(row(self.text_play, button("停止", self.stop_playback)))
-        result_layout.addLayout(row(self.text_wav, self.text_mp3))
+        result_layout.addLayout(row(self.text_wav, self.text_mp3, self.text_m4a))
         result_layout.addWidget(button("打开输出文件夹", self.open_outputs))
         right_layout.addWidget(result)
         right_layout.addStretch()
@@ -688,6 +689,7 @@ class MainWindow(QMainWindow):
         self.save_project_button.setEnabled(self.project is not None and not busy)
         self.text_wav.setEnabled(bool(self._text_output) and not busy)
         self.text_mp3.setEnabled(bool(self._text_output) and not busy)
+        self.text_m4a.setEnabled(bool(self._text_output) and not busy)
         self.gpu_combo.setEnabled(not busy)
         for selector in (self.text_voice, self.ppt_voice):
             selector.record_button.setEnabled(not busy and self._recording_dialog is None)
@@ -918,7 +920,7 @@ class MainWindow(QMainWindow):
                     if Path(self.settings.get("ffmpeg_path", "")).is_file():
                         self._check_video_encoder(event)
                     else:
-                        self.status_label.setText("CUDA 与语音合成自检通过。视频/MP3 功能仍需准备 FFmpeg。")
+                        self.status_label.setText("CUDA 与语音合成自检通过。视频、MP3 和 M4A 功能仍需准备 FFmpeg。")
                         if self._verification_mode:
                             self.verification_finished.emit({"complete": False, "inference_success": True,
                                                              "error": "缺少 FFmpeg，视频编码自检尚未完成。", "inference": event})
@@ -1055,7 +1057,7 @@ class MainWindow(QMainWindow):
         name.setPlaceholderText("给这个声音起一个名称")
         audio = QLineEdit()
         def choose():
-            path, _ = QFileDialog.getOpenFileName(dialog, "选择参考录音", "", "音频 (*.wav *.flac *.mp3 *.ogg)")
+            path, _ = QFileDialog.getOpenFileName(dialog, "选择参考录音", "", "音频 (*.wav *.flac *.mp3 *.ogg *.m4a)")
             if path:
                 audio.setText(path)
         text = QPlainTextEdit()
@@ -1070,7 +1072,8 @@ class MainWindow(QMainWindow):
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
         def save():
             try:
-                voice = self.library.add(name.text().strip(), audio.text().strip(), text.toPlainText().strip())
+                voice = self.library.add(name.text().strip(), audio.text().strip(), text.toPlainText().strip(),
+                                         ffmpeg=self.ffmpeg())
                 dialog.accept()
                 self._refresh_voice_list(voice["id"])
             except Exception as exc:
@@ -1826,7 +1829,7 @@ class MainWindow(QMainWindow):
         if output and Path(output).is_file():
             self._text_output = output
             self.text_result.setText(state.get("result_text", "已恢复上一次生成结果。"))
-            for item in (self.text_play, self.text_wav, self.text_mp3):
+            for item in (self.text_play, self.text_wav, self.text_mp3, self.text_m4a):
                 item.setEnabled(True)
         # Migrate named and legacy temporary references while originals exist.
         self._save_text_state()
@@ -1875,7 +1878,7 @@ class MainWindow(QMainWindow):
                     self.settings[key] = resolved[key]
                     self.setting_fields[key].setText(resolved[key])
             names = {"runtime-cu121": "RTX 20～40 运行组件", "runtime-cu128": "RTX 50 运行组件",
-                     "model-cosyvoice3": "CosyVoice 3 模型", "ffmpeg": "视频/MP3 编码组件"}
+                     "model-cosyvoice3": "CosyVoice 3 模型", "ffmpeg": "视频、MP3/M4A 编码组件"}
             missing = resolved.get("missing", [])
             self.component_status.setText("组件已就绪，可执行完整自检。" if not missing else "需要准备：" + "、".join(names.get(x, x) for x in missing))
             self.worker.configure(self.settings)

@@ -24,11 +24,11 @@ SOURCE_PAGE = "https://qwenaudio.github.io/cosyvoice3/#Target%20Speaker%20Fine-t
 BASE_URL = "https://qwenaudio.github.io/cosyvoice3/audio/c3_large/SFT/"
 DEMO_TEXT = "大家好，欢迎收听今天的讲解。接下来，我们会按照页面顺序，介绍主要内容、关键步骤和需要注意的事项。"
 SAMPLES = [
-    ("cosyvoice_demo_longwan_zh", "龙婉 · Longwan", "minority_langugae/sft_longwan_zh.wav",
+    ("cosyvoice_demo_longwan_zh", "示范音色1", "minority_langugae/sft_longwan_zh.wav",
      "我们将为全球城市的可持续发展贡献力量。"),
-    ("cosyvoice_demo_longshu_zh", "龙书 · Longshu", "minority_langugae/sft_longshu_zh.wav",
+    ("cosyvoice_demo_longshu_zh", "示范音色2", "minority_langugae/sft_longshu_zh.wav",
      "我们将为全球城市的可持续发展贡献力量。"),
-    ("cosyvoice_demo_longcheng_zh", "龙橙 · longcheng", "00004506-00000103.wav",
+    ("cosyvoice_demo_longcheng_zh", "示范音色3", "00004506-00000103.wav",
      "真不好意思，从小至今，他还从来没有被哪一位异性朋友亲吻过呢。"),
 ]
 

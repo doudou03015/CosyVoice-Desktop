@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import subprocess
 from uuid import uuid4
 
 from .documents import sha256
@@ -20,13 +21,49 @@ REMOVED_PRESET_IDS = frozenset({
     "aishell3_sample_03", "aishell3_sample_04",
 })
 
+# The three user-selected CosyVoice demo recordings keep their stable IDs and
+# files, while their product display names are intentionally generic.  The
+# mapping also upgrades older local manifests without changing project links.
+DEMO_PRESET_NAMES = {
+    "cosyvoice_demo_longwan_zh": "示范音色1",
+    "cosyvoice_demo_longshu_zh": "示范音色2",
+    "cosyvoice_demo_longcheng_zh": "示范音色3",
+}
 
-def validate_reference(audio, transcript):
+
+def prepare_reference_audio(audio, ffmpeg=None):
+    """Return a decoder-friendly reference path, converting M4A to PCM WAV."""
+    path = Path(audio).resolve()
+    if path.suffix.lower() != ".m4a":
+        return path
+    if not path.is_file():
+        raise ValueError("参考录音文件不存在。")
+    target = outside_sync(session_dir() / ("reference-m4a-" + uuid4().hex + ".wav"))
+    command = [str(ffmpeg or "ffmpeg"), "-hide_banner", "-loglevel", "error", "-y",
+               "-i", str(path), "-map", "0:a:0", "-vn", "-sn", "-dn", "-ac", "1",
+               "-ar", "24000", "-c:a", "pcm_s16le", str(target)]
+    try:
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   creationflags=flags, timeout=120, check=False)
+    except FileNotFoundError as error:
+        raise ValueError("导入 M4A 需要 FFmpeg，请先在设置中准备视频、MP3/M4A 编码组件。") from error
+    except subprocess.TimeoutExpired as error:
+        target.unlink(missing_ok=True)
+        raise ValueError("M4A 转换超时，请换用较短的录音后重试。") from error
+    if completed.returncode != 0 or not target.is_file() or target.stat().st_size == 0:
+        target.unlink(missing_ok=True)
+        detail = completed.stderr.decode("utf-8", "replace").strip()[-500:]
+        raise ValueError("无法解码 M4A 参考录音。" + (f"\n{detail}" if detail else ""))
+    return target
+
+
+def validate_reference(audio, transcript, ffmpeg=None):
     import numpy as np
     import soundfile as sf
     if not str(transcript).strip():
         raise ValueError("请填写与参考录音一致的原文。")
-    path = Path(audio).resolve()
+    path = prepare_reference_audio(audio, ffmpeg)
     try:
         info = sf.info(path)
         if info.samplerate < 16000:
@@ -36,7 +73,7 @@ def validate_reference(audio, transcript):
             raise ValueError("参考录音须大于 0 秒且不超过 30 秒。")
         data, rate = sf.read(path, dtype="float32", always_2d=True)
     except (OSError, RuntimeError) as error:
-        raise ValueError("无法读取参考录音，请使用有效的 WAV、FLAC 或 MP3。") from error
+        raise ValueError("无法读取参考录音，请使用有效的 WAV、FLAC、MP3、OGG 或 M4A。") from error
     if not np.isfinite(data).all():
         raise ValueError("参考录音含无效音频数据。")
     # Validate the mono signal actually consumed by the engine, including anti-phase stereo.
@@ -48,9 +85,10 @@ def validate_reference(audio, transcript):
                 duration=duration, rms=rms, sha256=sha256(path))
 
 
-def temporary_voice(audio, transcript):
-    stats = validate_reference(audio, transcript)
-    return dict(id="temporary-" + uuid4().hex, name="临时参考录音", audio=str(Path(audio).resolve()),
+def temporary_voice(audio, transcript, ffmpeg=None):
+    prepared = prepare_reference_audio(audio, ffmpeg)
+    stats = validate_reference(prepared, transcript)
+    return dict(id="temporary-" + uuid4().hex, name="临时参考录音", audio=str(prepared),
                 transcript=transcript.strip(), kind="temporary", source="本次导入", license="",
                 demo_audio="", validation=stats)
 
@@ -123,7 +161,7 @@ class VoiceLibrary:
                     demo_path = str(demo) if demo.is_file() else ""
                 except ValueError:
                     demo_path = ""
-                result.append(dict(id=voice_id, name=row["name"], audio=str(audio),
+                result.append(dict(id=voice_id, name=DEMO_PRESET_NAMES.get(voice_id, row["name"]), audio=str(audio),
                                    transcript=row["transcript"], kind="preset",
                                    source=row.get("source_page", ""), license=row.get("license", ""),
                                    attribution=row.get("attribution", ""),
@@ -162,16 +200,17 @@ class VoiceLibrary:
                 return voice
         raise KeyError("未找到所选音色，请重新选择。")
 
-    def add(self, name, audio, transcript, *, source="用户导入"):
+    def add(self, name, audio, transcript, *, source="用户导入", ffmpeg=None):
         import soundfile as sf
         if not name.strip():
             raise ValueError("请输入音色名称。")
-        stats = validate_reference(audio, transcript)
+        prepared = prepare_reference_audio(audio, ffmpeg)
+        stats = validate_reference(prepared, transcript)
         voice_id = "custom-" + uuid4().hex
         target = self.root / (voice_id + ".wav")
         temporary = outside_sync(session_dir() / (voice_id + ".wav"))
         try:
-            data, rate = sf.read(audio, always_2d=True, dtype="float32")
+            data, rate = sf.read(prepared, always_2d=True, dtype="float32")
             sf.write(temporary, data.mean(axis=1), rate, subtype="PCM_16")
             shutil.copyfile(temporary, target)
         finally:

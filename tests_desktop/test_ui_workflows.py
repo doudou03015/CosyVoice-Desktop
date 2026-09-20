@@ -131,6 +131,7 @@ def test_text_generation_submits_real_reference_and_result_enables_exports(windo
     assert window.text_play.isEnabled()
     assert window.text_wav.isEnabled()
     assert window.text_mp3.isEnabled()
+    assert window.text_m4a.isEnabled()
     assert window._text_output == str(output)
 
 

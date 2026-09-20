@@ -5,7 +5,9 @@
 “音色库”中的“删除音色”适用于预设和自建音色。旧版安装包中的六个 FLEURS/AISHELL-3 预设已经从产品移除；新安装和升级后都不会显示或恢复它们。用户自己的预设仍可删除，必要时可用“恢复预设”恢复仍存在的本地预设。
 自建音色删除其库内文件，当前稿件和已保存工程的参考副本及生成结果继续可用。
 
-点击“录制新音色”，选择麦克风并按窗口中的文字朗读。麦克风仅在点击“开始录音”
+点击“录制新音色”，选择麦克风并按窗口中的文字朗读。也可以通过“导入音色”选择 WAV、
+FLAC、MP3、OGG 或 M4A 参考录音；M4A 会由已准备的 FFmpeg 转为临时 PCM WAV 后保存。
+麦克风仅在点击“开始录音”
 后采集；录音时软件停止试听，不向扬声器实时回放。结束后可试听、修改与录音对应的
 原文或重录，再命名保存。建议 3～15 秒，30 秒自动停止，不足 3 秒、静音或无效音频
 不能保存。程序不转写录音，也不上传声音。
@@ -26,9 +28,9 @@
 
 | 音色与稳定 ID | 固定样本 |
 |---|---|
-| 龙婉 · Longwan / `cosyvoice_demo_longwan_zh` | [Longwan 中文](https://qwenaudio.github.io/cosyvoice3/audio/c3_large/SFT/minority_langugae/sft_longwan_zh.wav) |
-| 龙书 · Longshu / `cosyvoice_demo_longshu_zh` | [Longshu 中文](https://qwenaudio.github.io/cosyvoice3/audio/c3_large/SFT/minority_langugae/sft_longshu_zh.wav) |
-| 龙橙 · longcheng / `cosyvoice_demo_longcheng_zh` | [longcheng 示例](https://qwenaudio.github.io/cosyvoice3/audio/c3_large/SFT/00004506-00000103.wav) |
+| 示范音色1 / `cosyvoice_demo_longwan_zh` | [Longwan 中文](https://qwenaudio.github.io/cosyvoice3/audio/c3_large/SFT/minority_langugae/sft_longwan_zh.wav) |
+| 示范音色2 / `cosyvoice_demo_longshu_zh` | [Longshu 中文](https://qwenaudio.github.io/cosyvoice3/audio/c3_large/SFT/minority_langugae/sft_longshu_zh.wav) |
+| 示范音色3 / `cosyvoice_demo_longcheng_zh` | [longcheng 示例](https://qwenaudio.github.io/cosyvoice3/audio/c3_large/SFT/00004506-00000103.wav) |
 
 “参考录音”播放选定样本，“合成示例”播放本机用同一段讲稿生成的声音：
 

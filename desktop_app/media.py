@@ -167,12 +167,17 @@ def export_audio(source, destination, ffmpeg="ffmpeg", progress=None, cancel=Non
     import soundfile as sf
     destination = Path(destination).resolve()
     suffix = destination.suffix.lower()
-    if suffix not in {".wav", ".mp3"}:
-        raise ValueError("音频导出格式须为 WAV 或 MP3。")
+    if suffix not in {".wav", ".mp3", ".m4a"}:
+        raise ValueError("音频导出格式须为 WAV、MP3 或 M4A。")
     temporary = outside_sync(session_dir() / ("audio-" + uuid4().hex + suffix))
     try:
         info = sf.info(source)
-        codec = ["-c:a", "pcm_s16le"] if suffix == ".wav" else ["-c:a", "libmp3lame", "-b:a", "192k"]
+        if suffix == ".wav":
+            codec = ["-c:a", "pcm_s16le"]
+        elif suffix == ".mp3":
+            codec = ["-c:a", "libmp3lame", "-b:a", "192k"]
+        else:
+            codec = ["-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
         args = [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-y", "-i", str(source),
                 "-vn", *codec, "-progress", "pipe:1", "-nostats", str(temporary)]
         _run_ffmpeg(args, info.duration, progress, cancel)

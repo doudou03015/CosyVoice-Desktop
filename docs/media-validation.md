@@ -6,7 +6,8 @@
 
 `tests_desktop/test_documents.py`、`test_projects.py`、`test_voices.py`、
 `test_media.py` 共 13 个测试通过。设置 `COSYVOICE_TEST_FFMPEG` 为本机的
-FFmpeg 路径可开启实际编码测试；未设置时两个编码测试明确跳过。
+FFmpeg 路径可开启实际编码测试；未设置时两个编码测试明确跳过。实际编码测试覆盖
+WAV、MP3 和 M4A 音频导出。
 
 覆盖：TXT 三种编码及 DOCX 正文/表格顺序；20 页 PPT 备注、长文本、隐藏页、
 空页、表格与竖版页面；讲稿重复/越界校验；移动工程后资源可用；删除自建音色

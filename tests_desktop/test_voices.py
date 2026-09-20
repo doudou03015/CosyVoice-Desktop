@@ -1,13 +1,16 @@
 from pathlib import Path
 import json
+import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
 
 from desktop_app.paths import session_dir
-from desktop_app.voices import REMOVED_PRESET_IDS, VoiceLibrary, temporary_voice, validate_reference
+from desktop_app.voices import (REMOVED_PRESET_IDS, VoiceLibrary, prepare_reference_audio,
+                                 temporary_voice, validate_reference)
 
 
 def tone(path, frames=24000, rate=24000):
@@ -52,6 +55,20 @@ class VoiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             library.restore_presets(["not-a-preset"])
 
+    def test_m4a_reference_is_converted_to_pcm_wav_before_validation(self):
+        source = self.root / "录音.m4a"
+        source.write_bytes(b"m4a placeholder")
+
+        def fake_ffmpeg(command, **kwargs):
+            tone(Path(command[-1]))
+            return subprocess.CompletedProcess(command, 0, b"", b"")
+
+        with patch("desktop_app.voices.subprocess.run", side_effect=fake_ffmpeg):
+            prepared = prepare_reference_audio(source, "ffmpeg")
+        self.assertEqual(prepared.suffix, ".wav")
+        self.assertTrue(prepared.is_file())
+        self.assertEqual(validate_reference(prepared, "录音原文")["sample_rate"], 24000)
+
     def test_local_presets_first_deduplicated_and_hidden_ids_survive_updates(self):
         library = VoiceLibrary(self.root / "库")
         library.local_presets.mkdir()
@@ -66,12 +83,12 @@ class VoiceTests(unittest.TestCase):
         manifest = library.local_presets / "manifest.json"
         manifest.write_text(json.dumps(dict(schema_version=1, voices=rows), ensure_ascii=False), encoding="utf-8")
         self.assertEqual([item["id"] for item in library.list()], ["cosyvoice_demo_longwan_zh", "local-keep"])
-        library.delete(rows[0]["id"])
-        rows[0]["name"] = "更新名称"
+        library.delete(rows[1]["id"])
+        rows[1]["name"] = "更新名称"
         manifest.write_text(json.dumps(dict(schema_version=1, voices=rows), ensure_ascii=False), encoding="utf-8")
-        self.assertNotIn(rows[0]["id"], [item["id"] for item in VoiceLibrary(library.root).list()])
-        library.restore_presets([rows[0]["id"]])
-        self.assertEqual(library.list()[0]["name"], "更新名称")
+        self.assertNotIn(rows[1]["id"], [item["id"] for item in VoiceLibrary(library.root).list()])
+        library.restore_presets([rows[1]["id"]])
+        self.assertEqual(library.list()[1]["name"], "更新名称")
 
     def test_local_preset_paths_cannot_escape_manifest_directory(self):
         library = VoiceLibrary(self.root / "库")

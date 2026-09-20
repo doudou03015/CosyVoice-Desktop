@@ -68,10 +68,13 @@ class MediaTests(unittest.TestCase):
     def test_real_wav_mp3_and_h264_aac_export(self):
         ffmpeg = os.environ["COSYVOICE_TEST_FFMPEG"]
         original = self.root / "speech.wav"
-        for suffix in ("wav", "mp3"):
+        for suffix in ("wav", "mp3", "m4a"):
             output = self.root / ("导出音频." + suffix)
             self.assertEqual(export_audio(original, output, ffmpeg), str(output))
-            self.assertGreater(sf.info(output).frames, 0)
+            if suffix == "m4a":
+                self.assertGreater(output.stat().st_size, 0)
+            else:
+                self.assertGreater(sf.info(output).frames, 0)
         pages = [dict(number=1, text="讲稿", image="landscape.png", audio="speech.wav"),
                  dict(number=2, text="", image="portrait.png", blank_seconds=0.1)]
         output = self.root / "含 空格视频.mp4"

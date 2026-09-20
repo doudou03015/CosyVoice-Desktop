@@ -116,7 +116,7 @@ thread. `progress(event)` receives `{stage, message, completed, total}`;
   snapshots page WAV and saves; `cached_audio(slide,directory,fingerprint)` verifies
   WAV hash and returns a resolved path or None.
 - `media.export_audio(source,destination,ffmpeg='ffmpeg',progress=None,cancel=None)`
-  exports WAV/MP3 and returns the final path. `build_timeline(slides,project_dir,
+  exports WAV/MP3/M4A and returns the final path. `build_timeline(slides,project_dir,
   tail_silence=0.5,fps=30,sample_rate=24000)` returns frame/sample-aligned pages.
   `export_video(slides,project_dir,destination,ffmpeg='ffmpeg',gpu_index=0,
   tail_silence=0.5,progress=None,cancel=None)` returns path, duration, frames, encoder,
