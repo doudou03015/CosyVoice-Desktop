@@ -235561,13 +235561,33 @@
       "assets": [
         {
           "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu121-0.1.3.zip.part001",
-          "size": 1992294400,
-          "sha256": "bb557a387d7e0396426a5ef191d6426958bcdea9f7b3613e1f52aece043486f4"
+          "size": 536870912,
+          "sha256": "7b753fc18b9cb5eac7b7ce8669f420eb06ebbe9e42a80a8b0be416eb7ef85f1a"
         },
         {
           "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu121-0.1.3.zip.part002",
-          "size": 1172081685,
-          "sha256": "837a88f6c6da68904f9de1bc80778229e28641c15322bf043b7352b708dbecfe"
+          "size": 536870912,
+          "sha256": "3ef410ab78b1513a5e1d9347f06dfe3aeb0aff34e8f4149d156a822a7e392226"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu121-0.1.3.zip.part003",
+          "size": 536870912,
+          "sha256": "e843ec31386cbd3e5a7730ac790716d05d68683ba538f53964a7a2babd1e9c09"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu121-0.1.3.zip.part004",
+          "size": 536870912,
+          "sha256": "aeb7170708c7848209d5beff5672bdf8198a5c8d9d510081ba01a0ff7678a19d"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu121-0.1.3.zip.part005",
+          "size": 536870912,
+          "sha256": "d987f58731d1d8e9c9f519906756050355aa4ffbd441a4a88dddc7c8d4a4a9a1"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu121-0.1.3.zip.part006",
+          "size": 480021525,
+          "sha256": "8bc42932df9268df162445403b9d63fdaeb761530e56a00e4263b39b5c336551"
         }
       ],
       "runtime_id": "cu121",
@@ -472233,18 +472253,43 @@
       "assets": [
         {
           "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part001",
-          "size": 1992294400,
-          "sha256": "e251135d07d87c7e6f344529da19d712a70ecec957a31254e3e7a4a0ef7e8926"
+          "size": 536870912,
+          "sha256": "b614ba0f80e7c3769949c6f66d019b45cce8a997fa5ab30db5f0c932aad8b882"
         },
         {
           "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part002",
-          "size": 1992294400,
-          "sha256": "5aa5ba9d1bf69def07494161add21a110858cf94161aaff9aa8b23cb763a56a6"
+          "size": 536870912,
+          "sha256": "6b73f8a3ed446b2ead79df3caa491d0c55fc1d425555da0fd5599c23af1cf1a3"
         },
         {
           "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part003",
-          "size": 80632227,
-          "sha256": "7d3b34eed3f33d0c1e2e589440a9cebe4f018fc6a4c915a7e16a03556e0f005c"
+          "size": 536870912,
+          "sha256": "3147e5e36c7ece5b2030b71887a5da9ef5920afa6f1f1a9a402f51e1c98e69e0"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part004",
+          "size": 536870912,
+          "sha256": "1f60f65303a4b9c477238c6a8af532075628990ad7d404bd9b0cd7d2660adea3"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part005",
+          "size": 536870912,
+          "sha256": "21fb91486d28dae3ff8a3658c38cf403a87f92c00449612c08bc4ff54a99bee1"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part006",
+          "size": 536870912,
+          "sha256": "b5cfb5a1d267e065e968f625ca501e9f4def074087976e8be792de149d0a4d81"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part007",
+          "size": 536870912,
+          "sha256": "7ce450eb9941e0157be249a34a2be302ce15e80037a9ff384ee34a32d58829e5"
+        },
+        {
+          "url": "https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v0.1.3/runtime-cu128-0.1.3.zip.part008",
+          "size": 307124643,
+          "sha256": "a79e18d0472086daecda3e534ab4ebf657d2347bad2e92423341e969ee009670"
         }
       ],
       "runtime_id": "cu128",
