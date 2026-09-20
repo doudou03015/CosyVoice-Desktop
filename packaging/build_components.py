@@ -1,6 +1,7 @@
 """Create real standalone CUDA components. Build directories must be system Temp."""
 from __future__ import annotations
 import argparse
+import ast
 import hashlib
 import importlib.metadata
 import json
@@ -11,8 +12,21 @@ import subprocess
 import sys
 import zipfile
 
-ROOT = Path(__file__).resolve().parent.parent
-VERSION = '0.1.0-alpha.1'
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def app_version() -> str:
+    """Read the release version from the desktop application source."""
+    module = ast.parse((ROOT / 'desktop_app' / '__init__.py').read_text(encoding='utf-8'))
+    for node in module.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == '__version__':
+                    return str(ast.literal_eval(node.value))
+    raise RuntimeError('desktop_app.__version__ is missing')
+
+
+VERSION = app_version()
 BASE_URL = f'https://github.com/doudou03015/CosyVoice-Desktop/releases/download/v{VERSION}'
 MAX_ASSET = 1900 * 1024 * 1024
 
